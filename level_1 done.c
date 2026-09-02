@@ -330,7 +330,7 @@ int main()
     }
 
     UnloadTexture(moon02);
-    unloadtexture(space_background);
+    UnloadTexture(space_background);
     for (int i = 0; i < CNT; i++)
     {
         UnloadTexture(rocketTex[i]);
