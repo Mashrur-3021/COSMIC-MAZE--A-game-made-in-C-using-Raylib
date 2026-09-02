@@ -7,8 +7,8 @@
 #define rocketSpeed 2
 #define rocketSize 30
 #define moonSize 55
-const int HEIGHT = 900;
-const int WIDTH = 900;
+const int screen_height = 900;
+const int screen_width = 900;
 
 typedef struct
 {
@@ -32,18 +32,32 @@ typedef struct
 } Player;
 
 Texture2D rocketTex[CNT];
-Direction current_dir = UP;
 
 const char *rocketPics[CNT] = {
-    "D:/Raylib project/rocket/1.png",
-    "D:/Raylib project/rocket/2.png",
-    "D:/Raylib project/rocket/3.png",
-    "D:/Raylib project/rocket/4.png"};
+    "D:/Maze-explorer/rocket/1.png",
+    "D:/Maze-explorer/rocket/2.png",
+    "D:/Maze-explorer/rocket/3.png",
+    "D:/Maze-explorer/rocket/4.png"};
 
-Vector2 rocket_position = {1, 2};
-Vector2 moon_position = {9, 9};
+Texture2D space_background;
+Texture2D moon02;
 
-Wall level1[] = {
+const Vector2 rocket_position[] = {{1, 2}};
+Vector2 moon_position[] = {{9, 9}};
+Player Rocket[] = {
+    {rocketSpeed, DOWN, rocket_position[0]}};
+
+char *game_title = "MAZE EXPLORER";
+char *play_message = "PLAY";
+
+Font font_play;
+Vector2 play_button_pos;
+Vector2 game_title_pos;
+Rectangle play_button_posRec;
+Rectangle game_title_posRec;
+static Vector2 mousepos;
+
+Wall wall_level1[] = {
     {0, 0, 15, 0},
     {0, 15, 15, 15},
     {0, 0, 0, 15},
@@ -121,6 +135,8 @@ Wall level1[] = {
     {9, 5, 9, 6},
     {11, 6, 11, 7},
 };
+
+int wallCount1 = sizeof(wall_level1) / sizeof(Wall);
 
 void DrawWall(Wall w)
 {
@@ -224,7 +240,7 @@ void updateRocket(Player *rocket)
             case UP:
                 Vector2 next_pos = rocket->pos;
                 next_pos.y = rocket->pos.y - rocket->speed * dt;
-                if (!hitWall(next_pos, level1, sizeof(level1) / sizeof(level1[0])))
+                if (!hitWall(next_pos, wall_level1, sizeof(wall_level1) / sizeof(wall_level1[0])))
                 {
                     rocket->pos = next_pos;
                     if (rocket->pos.y < 0)
@@ -237,12 +253,12 @@ void updateRocket(Player *rocket)
             case DOWN:
                 next_pos = rocket->pos;
                 next_pos.y = rocket->pos.y + rocket->speed * dt;
-                if (!hitWall(next_pos, level1, sizeof(level1) / sizeof(level1[0])))
+                if (!hitWall(next_pos, wall_level1, sizeof(wall_level1) / sizeof(wall_level1[0])))
                 {
                     rocket->pos = next_pos;
-                    if (rocket->pos.y > HEIGHT)
+                    if (rocket->pos.y > screen_height)
                     {
-                        rocket->pos.y = HEIGHT;
+                        rocket->pos.y = screen_height;
                     }
                 }
                 break;
@@ -250,12 +266,12 @@ void updateRocket(Player *rocket)
             case RIGHT:
                 next_pos = rocket->pos;
                 next_pos.x = rocket->pos.x + rocket->speed * dt;
-                if (!hitWall(next_pos, level1, sizeof(level1) / sizeof(level1[0])))
+                if (!hitWall(next_pos, wall_level1, sizeof(wall_level1) / sizeof(wall_level1[0])))
                 {
                     rocket->pos = next_pos;
-                    if (rocket->pos.x > WIDTH)
+                    if (rocket->pos.x > screen_width)
                     {
-                        rocket->pos.x = WIDTH;
+                        rocket->pos.x = screen_width;
                     }
                 }
                 break;
@@ -263,7 +279,7 @@ void updateRocket(Player *rocket)
             case LEFT:
                 next_pos = rocket->pos;
                 next_pos.x = rocket->pos.x - rocket->speed * dt;
-                if (!hitWall(next_pos, level1, sizeof(level1) / sizeof(level1[0])))
+                if (!hitWall(next_pos, wall_level1, sizeof(wall_level1) / sizeof(wall_level1[0])))
                 {
                     rocket->pos = next_pos;
                     if (rocket->pos.x < 0)
@@ -280,20 +296,96 @@ void updateRocket(Player *rocket)
     }
 }
 
+void load_data_0()
+{
+
+    font_play = LoadFont("D:/Raylib project/Fonts/ALIEN CYBERNETICS.ttf");
+    play_button_pos = (Vector2){screen_width / 2 - MeasureTextEx(font_play, play_message, (float)font_play.baseSize + 20, 2).x / 2,
+                                screen_height * 2 / 3 - MeasureTextEx(font_play, play_message, (float)font_play.baseSize, 2).y / 2};
+
+    game_title_pos = (Vector2){screen_width / 2 - MeasureTextEx(font_play, game_title, (float)font_play.baseSize + 40, 4).x / 2,
+                               screen_height / 10 - MeasureTextEx(font_play, game_title, (float)font_play.baseSize + 40, 4).y / 2};
+
+    float paddingX = 20;
+    float paddingY = 15;
+
+    play_button_posRec = (Rectangle){play_button_pos.x - paddingX,
+                                     play_button_pos.y - paddingY,
+                                     MeasureTextEx(font_play, play_message, (float)font_play.baseSize + 20, 2).x + paddingX * 2,
+                                     MeasureTextEx(font_play, play_message, (float)font_play.baseSize + 20, 2).y + paddingY * 2};
+
+    game_title_posRec = (Rectangle){game_title_pos.x - paddingX,
+                                    game_title_pos.y - paddingY,
+                                    MeasureTextEx(font_play, game_title, (float)font_play.baseSize + 40, 4).x + paddingX * 4,
+                                    MeasureTextEx(font_play, game_title, (float)font_play.baseSize + 40, 4).y / 2 + paddingY * 4};
+}
+
+void load_data_1()
+{
+    space_background = LoadTexture("D:/Maze-explorer/Background/1.png");
+    moon02 = LoadTexture("D:/Maze-explorer/Planets/planet.png");
+}
+
+void start_gameplay()
+{
+    static int level = 0;
+
+    switch (level)
+    {
+    case 0:
+
+        mousepos = GetMousePosition();
+        DrawRectangleRounded(play_button_posRec, 1.0f, 8, YELLOW);
+        DrawRectangleRoundedLinesEx(play_button_posRec, 1.0f, 8, 2, BLACK);
+        DrawRectangleRounded(game_title_posRec, 1.0f, 8, YELLOW);
+        DrawRectangleRoundedLinesEx(game_title_posRec, 1.0f, 8, 4, BLACK);
+
+        DrawTextEx(font_play, play_message, play_button_pos, (float)font_play.baseSize + 20, 2, RED);
+        DrawTextEx(font_play, game_title, game_title_pos, (float)font_play.baseSize + 40, 2, (Color){250, 2, 100, 255});
+
+        if (CheckCollisionPointRec(mousepos, play_button_posRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+        {
+            level = 1;
+        }
+
+        break;
+
+    case 1:
+
+        DrawTexturePro(moon02,
+                       (Rectangle){0, 0, moon02.width, moon02.height},
+                       (Rectangle){moon_position[0].x * CELL, moon_position[0].y * CELL, moonSize, moonSize},
+                       (Vector2){0, 0}, 0.0f, WHITE);
+
+        DrawTexturePro(rocketTex[Rocket[0].dir],
+                       (Rectangle){0, 0, rocketTex[Rocket[0].dir].width, rocketTex[Rocket[0].dir].height},
+                       (Rectangle){Rocket[0].pos.x * CELL, Rocket[0].pos.y * CELL, rocketSize, rocketSize},
+                       (Vector2){0, 0}, 0.0f, WHITE);
+
+        for (int i = 0; i < wallCount1; i++)
+        {
+            DrawWall(wall_level1[i]);
+        }
+
+        updateRocket(&Rocket[0]);
+
+    default:
+        break;
+    }
+}
+
 int main()
 {
-    InitWindow(WIDTH, HEIGHT, "Maze solver");
+    InitWindow(screen_width, screen_height, "Maze solver");
     SetTargetFPS(60);
-
-    Texture2D space_background = LoadTexture("D:/Raylib project/Background/1.png");
-    Texture2D moon02 = LoadTexture("D:/Raylib project/Planets/moon_02.png");
-
-    Player Rocket = {rocketSpeed, DOWN, rocket_position};
 
     for (int i = 0; i < CNT; i++)
     {
         rocketTex[i] = LoadTexture(rocketPics[i]);
     }
+
+    load_data_0();
+    load_data_1();
 
     while (!WindowShouldClose())
     {
@@ -301,30 +393,12 @@ int main()
         BeginDrawing();
         ClearBackground(DARKBLUE);
 
-        int wallCount = sizeof(level1) / sizeof(Wall);
-
-        Rectangle source = {0, 0, space_background.width, space_background.height};
-        Rectangle dest = {0, 0, WIDTH, HEIGHT};
-        Vector2 origin = {0, 0};
-
-        DrawTexturePro(space_background, source, dest, origin, 0.0f, WHITE);
-
-        DrawTexturePro(moon02,
-                       (Rectangle){0, 0, moon02.width, moon02.height},
-                       (Rectangle){moon_position.x * CELL, moon_position.y * CELL, moonSize, moonSize},
+        DrawTexturePro(space_background,
+                       (Rectangle){0, 0, space_background.width, space_background.height},
+                       (Rectangle){0, 0, screen_width, screen_height},
                        (Vector2){0, 0}, 0.0f, WHITE);
 
-        DrawTexturePro(rocketTex[Rocket.dir],
-                       (Rectangle){0, 0, rocketTex[Rocket.dir].width, rocketTex[Rocket.dir].height},
-                       (Rectangle){Rocket.pos.x * CELL, Rocket.pos.y * CELL, rocketSize, rocketSize},
-                       (Vector2){0, 0}, 0.0f, WHITE);
-
-        for (int i = 0; i < wallCount; i++)
-        {
-            DrawWall(level1[i]);
-        }
-
-        updateRocket(&Rocket);
+        start_gameplay();
 
         EndDrawing();
     }
