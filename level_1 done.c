@@ -31,25 +31,38 @@ typedef struct
     Vector2 pos;
 } Player;
 
-Texture2D rocketTex[CNT];
-
+// rocket pics directories
 const char *rocketPics[CNT] = {
     "D:/Maze-explorer/rocket/1.png",
     "D:/Maze-explorer/rocket/2.png",
     "D:/Maze-explorer/rocket/3.png",
     "D:/Maze-explorer/rocket/4.png"};
 
+// textures
+Texture2D rocketTex[CNT];
 Texture2D space_background;
-Texture2D moon02;
+Texture2D planet;
 
+const Vector2 rocket_position[] = {{1, 2},{5,13},{1,13}};
+Vector2 moon_position[] = {{9, 9},{7,7},{10,1}};
+// vector arrays
 const Vector2 rocket_position[] = {{1, 2}};
-Vector2 moon_position[] = {{9, 9}};
+Vector2 planet_position[] = {{9, 9}};
+
+// vector arrays
+const Vector2 rocket_position[] = {{1, 2}};
+Vector2 planet_position[] = {{9, 9}};
+
 Player Rocket[] = {
     {rocketSpeed, DOWN, rocket_position[0]}};
 
+// game messages
 char *game_title = "MAZE EXPLORER";
 char *play_message = "PLAY";
+char *transition_msg1 = "Level-1 Done!!!";
+char *transition_msg2 = "Move to next level";
 
+// variables for manu windows
 Font font_play;
 Vector2 play_button_pos;
 Vector2 game_title_pos;
@@ -57,6 +70,14 @@ Rectangle play_button_posRec;
 Rectangle game_title_posRec;
 static Vector2 mousepos;
 
+Vector2 message1_pos;
+Vector2 message2_pos;
+Rectangle message_box;
+
+float font_size = 30;
+float spacing = 2;
+
+// wall levels
 Wall wall_level1[] = {
     {0, 0, 15, 0},
     {0, 15, 15, 15},
@@ -138,6 +159,360 @@ Wall wall_level1[] = {
 
 int wallCount1 = sizeof(wall_level1) / sizeof(Wall);
 
+Wall wall_level2[] = {
+    {0, 0, 15, 0},
+    {0, 15, 15, 15},
+    {0, 0, 0, 15},
+    {15, 0, 15, 15},
+    {0, 1, 1, 1},
+    {1, 1, 2, 1},
+    {3, 0, 3, 1},
+    {3, 1, 3, 2},
+    {2, 2, 3, 2},
+    {1, 2, 2, 2},
+    {1, 2, 1, 3},
+    {1, 3, 2, 3},
+    {2, 3, 3, 3},
+    {3, 3, 4, 3},
+    {4, 2, 4, 3},
+    {0, 4, 1, 4},
+    {1, 4, 2, 4},
+    {3, 4, 3, 5},
+    {3, 5, 3, 6},
+    {3, 6, 3, 7},
+    {2, 6, 3, 6},
+    {2, 5, 2, 6},
+    {3, 7, 4, 7},
+    {4, 6, 4, 7},
+    {4, 5, 4, 6},
+    {4, 5, 5, 5},
+    {0, 6, 1, 6},
+    {1, 6, 1, 7},
+    {1, 7, 1, 8},
+    {1, 8, 2, 8},
+    {2, 8, 3, 8},
+    {3, 8, 4, 8},
+    {4, 8, 5, 8},
+    {5, 7, 5, 8},
+    {5, 6, 5, 7},
+    {5, 8, 5, 9},
+    {1, 8, 1, 9},
+    {1, 9, 2, 9},
+    {2, 9, 3, 9},
+    {2, 9, 2, 10},
+    {0, 10, 1, 10},
+    {1, 10, 1, 11},
+    {1, 11, 1, 12},
+    {1, 12, 2, 12},
+    {2, 12, 2, 13},
+    {1, 13, 2, 13},
+    {1, 13, 1, 14},
+    {5, 6, 6, 6},
+    {4, 2, 5, 2},
+    {4, 1, 4, 2},
+    {4, 1, 5, 1},
+    {5, 1, 6, 1},
+    {6, 1, 7, 1},
+    {6, 0, 6, 1},
+    {5, 2, 5, 3},
+    {5, 3, 6, 3},
+    {6, 3, 7, 3},
+    {6, 3, 6, 4},
+    {6, 4, 7, 4},
+    {6, 4, 6, 5},
+    {7, 1, 7, 2},
+    {7, 2, 8, 2},
+    {8, 2, 9, 2},
+    {9, 2, 9, 3},
+    {6, 5, 7, 5},
+    {7, 5, 8, 5},
+    {8, 4, 8, 5},
+    {9, 3, 10, 3},
+    {8, 4, 9, 4},
+    {6, 6, 6, 7},
+    {6, 7, 7, 7},
+    {7, 7, 7, 8},
+    {7, 8, 7, 9},
+    {3, 9, 3, 10},
+    {3, 10, 4, 10},
+    {4, 10, 4, 11},
+    {4, 10, 5, 10},
+    {5, 10, 6, 10},
+    {5, 10, 5, 11},
+    {5, 11, 5, 12},
+    {5, 12, 5, 13},
+    {4, 12, 5, 12},
+    {3, 12, 4, 12},
+    {3, 11, 3, 12},
+    {1, 11, 2, 11},
+    {3, 12, 3, 13},
+    {3, 13, 3, 14},
+    {3, 14, 3, 15},
+    {2, 14, 3, 14},
+    {3, 13, 4, 13},
+    {4, 13, 4, 14},
+    {4, 14, 5, 14},
+    {5, 14, 6, 14},
+    {6, 10, 7, 10},
+    {7, 10, 7, 11},
+    {6, 11, 7, 11},
+    {6, 11, 6, 12},
+    {6, 12, 7, 12},
+    {7, 12, 8, 12},
+    {8, 12, 9, 12},
+    {8, 12, 8, 13},
+    {8, 13, 9, 13},
+    {9, 13, 10, 13},
+    {10, 13, 11, 13},
+    {11, 13, 11, 14},
+    {11, 13, 12, 13},
+    {11, 14, 12, 14},
+    {7, 13, 8, 13},
+    {8, 13, 8, 14},
+    {8, 14, 9, 14},
+    {9, 14, 10, 14},
+    {7, 14, 7, 15},
+    {9, 4, 10, 4},
+    {10, 2, 10, 3},
+    {10, 1, 10, 2},
+    {10, 1, 11, 1},
+    {11, 1, 12, 1},
+    {12, 1, 12, 2},
+    {12, 2, 12, 3},
+    {12, 3, 13, 3},
+    {13, 3, 14, 3},
+    {12, 1, 13, 1},
+    {13, 1, 14, 1},
+    {10, 0, 10, 1},
+    {12, 2, 13, 2},
+    {10, 4, 10, 5},
+    {9, 5, 10, 5},
+    {9, 5, 9, 6},
+    {9, 7, 9, 8},
+    {8, 7, 9, 7},
+    {9, 8, 10, 8},
+    {10, 8, 11, 8},
+    {11, 7, 11, 8},
+    {11, 6, 11, 7},
+    {11, 5, 11, 6},
+    {11, 4, 11, 5},
+    {11, 4, 12, 4},
+    {12, 4, 13, 4},
+    {13, 4, 14, 4},
+    {9, 8, 9, 9},
+    {11, 8, 11, 9},
+    {11, 9, 11, 10},
+    {11, 8, 12, 8},
+    {11, 7, 12, 7},
+    {12, 4, 12, 5},
+    {12, 5, 13, 5},
+    {13, 5, 14, 5},
+    {12, 5, 12, 6},
+    {12, 6, 13, 6},
+    {13, 6, 13, 7},
+    {12, 8, 12, 9},
+    {12, 9, 12, 10},
+    {6, 9, 7, 9},
+    {4, 9, 4, 10},
+    {7, 11, 8, 11},
+    {8, 11, 9, 11},
+    {10, 12, 10, 13},
+    {10, 10, 10, 11},
+    {9, 9, 10, 9},
+    {9, 10, 9, 11},
+    {10, 10, 11, 10},
+    {12, 10, 12, 11},
+    {12, 11, 13, 11},
+    {13, 11, 13, 12},
+    {13, 12, 14, 12},
+    {13, 13, 14, 13},
+    {14, 13, 14, 14},
+    {8, 9, 9, 9},
+    {10, 11, 11, 11},
+    {11, 11, 11, 12},
+    {11, 12, 12, 12},
+    {13, 12, 13, 13},
+    {12, 14, 13, 14},
+    {13, 7, 13, 8},
+    {14, 5, 14, 6},
+    {14, 7, 15, 7},
+    {14, 7, 14, 8},
+    {14, 8, 14, 9},
+    {14, 9, 14, 10},
+    {13, 9, 14, 9},
+    {14, 10, 14, 11},
+    {9, 9, 9, 10},
+};
+
+int wallCount2 = sizeof(wall_level2) / sizeof(Wall);
+
+
+
+Wall wall_level3[] = {
+    {0, 0, 15, 0},
+    {0, 15, 15, 15},
+    {0, 0, 0, 15},
+    {15, 0, 15, 15},
+    {1, 1, 2, 1},
+    {2, 2, 2, 3},
+    {2, 1, 3, 1},
+    {3, 1, 3, 2},
+    {2, 2, 3, 2},
+    {1, 3, 2, 3},
+    {1, 3, 1, 4},
+    {0, 4, 1, 4},
+    {1, 5, 1, 6},
+    {1, 6, 2, 6},
+    {2, 6, 3, 6},
+    {2, 6, 2, 7},
+    {2, 7, 2, 8},
+    {2, 8, 3, 8},
+    {3, 8, 4, 8},
+    {4, 8, 4, 9},
+    {4, 9, 5, 9},
+    {5, 9, 5, 10},
+    {5, 10, 5, 11},
+    {4, 11, 5, 11},
+    {3, 11, 4, 11},
+    {3, 10, 3, 11},
+    {3, 11, 3, 12},
+    {2, 11, 2, 12},
+    {1, 12, 2, 12},
+    {1, 12, 1, 13},
+    {2, 10, 3, 10},
+    {2, 14, 3, 14},
+    {3, 13, 3, 14},
+    {3, 13, 4, 13},
+    {4, 13, 5, 13},
+    {5, 13, 5, 14},
+    {5, 14, 6, 14},
+    {6, 13, 6, 14},
+    {6, 12, 6, 13},
+    {6, 12, 7, 12},
+    {7, 12, 8, 12},
+    {8, 12, 8, 13},
+    {8, 13, 8, 14},
+    {8, 13, 9, 13},
+    {9, 13, 10, 13},
+    {10, 13, 11, 13},
+    {10, 12, 10, 13},
+    {10, 11, 10, 12},
+    {9, 10, 9, 11},
+    {9, 10, 10, 10},
+    {10, 10, 11, 10},
+    {7, 10, 8, 10},
+    {7, 11, 8, 11},
+    {6, 11, 7, 11},
+    {6, 10, 6, 11},
+    {6, 9, 6, 10},
+    {6, 9, 7, 9},
+    {7, 8, 7, 9},
+    {7, 7, 7, 8},
+    {7, 7, 8, 7},
+    {8, 7, 9, 7},
+    {8, 6, 8, 7},
+    {7, 6, 8, 6},
+    {6, 6, 7, 6},
+    {6, 5, 6, 6},
+    {4, 8, 5, 8},
+    {5, 7, 5, 8},
+    {4, 7, 5, 7},
+    {4, 6, 4, 7},
+    {4, 5, 4, 6},
+    {3, 5, 4, 5},
+    {3, 4, 3, 5},
+    {3, 4, 4, 4},
+    {6, 5, 7, 5},
+    {1, 9, 2, 9},
+    {1, 9, 1, 10},
+    {5, 3, 5, 4},
+    {5, 2, 5, 3},
+    {4, 3, 5, 3},
+    {4, 1, 4, 2},
+    {4, 1, 5, 1},
+    {5, 1, 6, 1},
+    {6, 1, 7, 1},
+    {6, 1, 6, 2},
+    {7, 3, 8, 3},
+    {7, 3, 7, 4},
+    {7, 4, 8, 4},
+    {8, 4, 8, 5},
+    {8, 5, 9, 5},
+    {9, 5, 9, 6},
+    {9, 5, 10, 5},
+    {10, 4, 10, 5},
+    {6, 3, 7, 3},
+    {8, 9, 9, 9},
+    {9, 9, 9, 10},
+    {11, 9, 11, 10},
+    {11, 9, 12, 9},
+    {12, 10, 13, 10},
+    {12, 10, 12, 11},
+    {12, 11, 12, 12},
+    {11, 12, 12, 12},
+    {11, 13, 12, 13},
+    {13, 12, 13, 13},
+    {13, 11, 13, 12},
+    {13, 11, 14, 11},
+    {11, 14, 12, 14},
+    {10, 14, 10, 15},
+    {8, 14, 9, 14},
+    {7, 14, 8, 14},
+    {6, 13, 7, 13},
+    {4, 12, 5, 12},
+    {6, 7, 6, 8},
+    {5, 5, 5, 6},
+    {0, 7, 1, 7},
+    {0, 11, 1, 11},
+    {9, 3, 10, 3},
+    {9, 2, 9, 3},
+    {9, 1, 9, 2},
+    {9, 1, 10, 1},
+    {8, 2, 9, 2},
+    {9, 8, 9, 9},
+    {9, 8, 10, 8},
+    {10, 8, 11, 8},
+    {11, 7, 11, 8},
+    {11, 7, 12, 7},
+    {10, 7, 11, 7},
+    {10, 6, 10, 7},
+    {10, 5, 11, 5},
+    {11, 5, 12, 5},
+    {11, 4, 11, 5},
+    {11, 4, 12, 4},
+    {12, 3, 12, 4},
+    {12, 3, 13, 3},
+    {12, 2, 12, 3},
+    {11, 3, 12, 3},
+    {12, 2, 13, 2},
+    {13, 2, 14, 2},
+    {11, 6, 12, 6},
+    {12, 6, 13, 6},
+    {13, 6, 13, 7},
+    {13, 7, 13, 8},
+    {12, 8, 13, 8},
+    {13, 9, 14, 9},
+    {14, 9, 14, 10},
+    {13, 14, 14, 14},
+    {14, 12, 14, 13},
+    {14, 8, 14, 9},
+    {14, 8, 15, 8},
+    {13, 6, 14, 6},
+    {14, 5, 14, 6},
+    {14, 4, 14, 5},
+    {14, 4, 15, 4},
+    {14, 3, 14, 4},
+    {13, 4, 13, 5},
+    {13, 1, 13, 2},
+    {12, 1, 13, 1},
+};
+int wallCount3 = sizeof(wall_level3) / sizeof(Wall);
+
+
+
+// functions
+// functions
+
 void DrawWall(Wall w)
 {
     int x1 = w.x1 * CELL, y1 = w.y1 * CELL;
@@ -196,7 +571,19 @@ bool hitWall(Vector2 rocket_pos, Wall *level, int n)
     return false;
 }
 
-void updateRocket(Player *rocket)
+bool is_at_same_place(Vector2 planet_pos, Vector2 rocket_pos)
+{
+    int rx = (int)(rocket_pos.x + 0.5f);
+    int ry = (int)(rocket_pos.y + 0.5f);
+    int px = (int)(planet_pos.x);
+    int py = (int)(planet_pos.y);
+    if (rx == px && ry == py)
+        return true;
+    else
+        return false;
+}
+
+void updateRocket(Player *rocket, Wall wall_level[], int wall_count)
 {
     float dt = GetFrameTime();
     Direction pressed = rocket->dir;
@@ -240,7 +627,7 @@ void updateRocket(Player *rocket)
             case UP:
                 Vector2 next_pos = rocket->pos;
                 next_pos.y = rocket->pos.y - rocket->speed * dt;
-                if (!hitWall(next_pos, wall_level1, sizeof(wall_level1) / sizeof(wall_level1[0])))
+                if (!hitWall(next_pos, wall_level, wall_count))
                 {
                     rocket->pos = next_pos;
                     if (rocket->pos.y < 0)
@@ -253,7 +640,7 @@ void updateRocket(Player *rocket)
             case DOWN:
                 next_pos = rocket->pos;
                 next_pos.y = rocket->pos.y + rocket->speed * dt;
-                if (!hitWall(next_pos, wall_level1, sizeof(wall_level1) / sizeof(wall_level1[0])))
+                if (!hitWall(next_pos, wall_level, wall_count))
                 {
                     rocket->pos = next_pos;
                     if (rocket->pos.y > screen_height)
@@ -266,7 +653,7 @@ void updateRocket(Player *rocket)
             case RIGHT:
                 next_pos = rocket->pos;
                 next_pos.x = rocket->pos.x + rocket->speed * dt;
-                if (!hitWall(next_pos, wall_level1, sizeof(wall_level1) / sizeof(wall_level1[0])))
+                if (!hitWall(next_pos, wall_level, wall_count))
                 {
                     rocket->pos = next_pos;
                     if (rocket->pos.x > screen_width)
@@ -279,7 +666,7 @@ void updateRocket(Player *rocket)
             case LEFT:
                 next_pos = rocket->pos;
                 next_pos.x = rocket->pos.x - rocket->speed * dt;
-                if (!hitWall(next_pos, wall_level1, sizeof(wall_level1) / sizeof(wall_level1[0])))
+                if (!hitWall(next_pos, wall_level, wall_count))
                 {
                     rocket->pos = next_pos;
                     if (rocket->pos.x < 0)
@@ -323,7 +710,19 @@ void load_data_0()
 void load_data_1()
 {
     space_background = LoadTexture("D:/Maze-explorer/Background/1.png");
-    moon02 = LoadTexture("D:/Maze-explorer/Planets/planet.png");
+    planet = LoadTexture("D:/Maze-explorer/Planets/planet.png");
+}
+
+void load_data_transition_window()
+{
+
+    float box_width = 400;
+    float box_height = 160;
+    message_box = (Rectangle){screen_width / 2 - box_width / 2, screen_height / 2 - box_height / 2, box_width, box_height};
+
+    message1_pos = (Vector2){screen_width / 2 - MeasureTextEx(font_play, transition_msg1, font_size, spacing).x / 2, message_box.y + 35};
+
+    message2_pos = (Vector2){screen_width / 2 - MeasureTextEx(font_play, transition_msg2, font_size, spacing).x / 2 + 20, message_box.y + 85};
 }
 
 void start_gameplay()
@@ -352,9 +751,9 @@ void start_gameplay()
 
     case 1:
 
-        DrawTexturePro(moon02,
-                       (Rectangle){0, 0, moon02.width, moon02.height},
-                       (Rectangle){moon_position[0].x * CELL, moon_position[0].y * CELL, moonSize, moonSize},
+        DrawTexturePro(planet,
+                       (Rectangle){0, 0, planet.width, planet.height},
+                       (Rectangle){planet_position[0].x * CELL, planet_position[0].y * CELL, moonSize, moonSize},
                        (Vector2){0, 0}, 0.0f, WHITE);
 
         DrawTexturePro(rocketTex[Rocket[0].dir],
@@ -367,7 +766,29 @@ void start_gameplay()
             DrawWall(wall_level1[i]);
         }
 
-        updateRocket(&Rocket[0]);
+        updateRocket(&Rocket[0], wall_level1, wallCount1);
+
+        if (is_at_same_place(planet_position[0], Rocket[0].pos))
+        {
+            level = 2;
+        }
+        break;
+
+    case 2:
+        mousepos = GetMousePosition();
+        DrawRectangleRounded(message_box, 1.0f, 8, YELLOW);
+
+        DrawRectangleRoundedLinesEx(message_box, 1.0f, 8, 2, BLACK);
+
+        DrawTextEx(font_play, transition_msg1, message1_pos, font_size, spacing, BLACK);
+        DrawTextEx(font_play, transition_msg2, message2_pos, font_size, spacing, BLACK);
+
+        if (CheckCollisionPointRec(mousepos, play_button_posRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+        {
+            level = 3;
+        }
+
+        break;
 
     default:
         break;
@@ -386,6 +807,7 @@ int main()
 
     load_data_0();
     load_data_1();
+    load_data_transition_window();
 
     while (!WindowShouldClose())
     {
@@ -403,7 +825,7 @@ int main()
         EndDrawing();
     }
 
-    UnloadTexture(moon02);
+    UnloadTexture(planet);
     UnloadTexture(space_background);
     for (int i = 0; i < CNT; i++)
     {
