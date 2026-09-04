@@ -44,14 +44,8 @@ Texture2D space_background;
 Texture2D planet;
 
 const Vector2 rocket_position[] = {{1, 2},{5,13},{1,13}};
-Vector2 moon_position[] = {{9, 9},{7,7},{10,1}};
+Vector2 planet_position[] = {{9, 9},{7,7},{10,1}};
 // vector arrays
-const Vector2 rocket_position[] = {{1, 2}};
-Vector2 planet_position[] = {{9, 9}};
-
-// vector arrays
-const Vector2 rocket_position[] = {{1, 2}};
-Vector2 planet_position[] = {{9, 9}};
 
 Player Rocket[] = {
     {rocketSpeed, DOWN, rocket_position[0]}};
