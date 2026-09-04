@@ -44,22 +44,22 @@ Texture2D space_background;
 Texture2D planet;
 
 
-const Vector2 rocket_position[] = {{1, 2},{5,13},{1,13}};
+const Vector2 rocket_position[] = {{1, 2},{6,13},{1,14}};
 Vector2 planet_position[] = {{9, 9},{7,7},{10,1}};
 // vector arrays
 
-// vector arrays
-const Vector2 rocket_position[] = {{1, 2}};
-Vector2 planet_position[] = {{9, 9}};
 
-Player Rocket[] = {
-    {rocketSpeed, DOWN, rocket_position[0]}};
-
+Player rocket = {rocketSpeed, DOWN, rocket_position[0]};
 // game messages
 char *game_title = "MAZE EXPLORER";
 char *play_message = "PLAY";
 char *transition_msg1 = "Level-1 Done!!!";
 char *transition_msg2 = "Move to next level";
+char *transition2_msg1 = "Level-2 Done!!!";
+char *transition2_msg2 = "Move to next level";
+char *transition3_msg1 = "Level-3 Done!!!";
+char *transition3_msg2 = "Move to next level";
+
 
 // variables for manu windows
 Font font_play;
@@ -72,6 +72,13 @@ static Vector2 mousepos;
 Vector2 message1_pos;
 Vector2 message2_pos;
 Rectangle message_box;
+Vector2 message3_pos;
+Vector2 message4_pos;
+Rectangle message_box2;
+Vector2 message5_pos;
+Vector2 message6_pos;
+Rectangle message_box3;
+
 
 float font_size = 30;
 float spacing = 2;
@@ -716,16 +723,97 @@ void load_data_1()
 
 void load_data_transition_window()
 {
+    float padding_x = 50;
+    float padding_y = 30;
+    float line_gap = 20;
 
-    float box_width = 400;
-    float box_height = 160;
-    message_box = (Rectangle){screen_width / 2 - box_width / 2, screen_height / 2 - box_height / 2, box_width, box_height};
+    Vector2 msg1_size = MeasureTextEx(font_play, transition_msg1, font_size, spacing);
+    Vector2 msg2_size = MeasureTextEx(font_play, transition_msg2, font_size, spacing);
 
-    message1_pos = (Vector2){screen_width / 2 - MeasureTextEx(font_play, transition_msg1, font_size, spacing).x / 2, message_box.y + 35};
+    float text_width = (msg1_size.x > msg2_size.x) ? msg1_size.x : msg2_size.x;
 
-    message2_pos = (Vector2){screen_width / 2 - MeasureTextEx(font_play, transition_msg2, font_size, spacing).x / 2 + 20, message_box.y + 85};
+    float box_width = text_width + padding_x * 2;
+    float box_height = msg1_size.y + msg2_size.y + line_gap + padding_y * 2;
+
+    message_box = (Rectangle){
+        screen_width / 2 - box_width / 2,
+        screen_height / 2 - box_height / 2,
+        box_width,
+        box_height
+    };
+
+    message1_pos = (Vector2){
+        screen_width / 2 - msg1_size.x / 2,
+        message_box.y + padding_y
+    };
+
+    message2_pos = (Vector2){
+        screen_width / 2 - msg2_size.x / 2,
+        message_box.y + padding_y + msg1_size.y + line_gap
+    };
 }
+void load_data_transition_window2()
+{
+    float padding_x = 50;
+    float padding_y = 30;
+    float line_gap = 20;
 
+    Vector2 msg1_size = MeasureTextEx(font_play, transition2_msg1, font_size, spacing);
+    Vector2 msg2_size = MeasureTextEx(font_play, transition2_msg2, font_size, spacing);
+
+    float text_width = (msg1_size.x > msg2_size.x) ? msg1_size.x : msg2_size.x;
+
+    float box_width = text_width + padding_x * 2;
+    float box_height = msg1_size.y + msg2_size.y + line_gap + padding_y * 2;
+
+    message_box2 = (Rectangle){
+        screen_width / 2 - box_width / 2,
+        screen_height / 2 - box_height / 2,
+        box_width,
+        box_height
+    };
+
+    message3_pos = (Vector2){
+        screen_width / 2 - msg1_size.x / 2,
+        message_box2.y + padding_y
+    };
+
+    message4_pos = (Vector2){
+        screen_width / 2 - msg2_size.x / 2,
+        message_box2.y + padding_y + msg1_size.y + line_gap
+    };
+}
+void load_data_transition_window3()
+{
+    float padding_x = 50;
+    float padding_y = 30;
+    float line_gap = 20;
+
+    Vector2 msg1_size = MeasureTextEx(font_play, transition3_msg1, font_size, spacing);
+    Vector2 msg2_size = MeasureTextEx(font_play, transition3_msg2, font_size, spacing);
+
+    float text_width = (msg1_size.x > msg2_size.x) ? msg1_size.x : msg2_size.x;
+
+    float box_width = text_width + padding_x * 2;
+    float box_height = msg1_size.y + msg2_size.y + line_gap + padding_y * 2;
+
+    message_box3 = (Rectangle){
+        screen_width / 2 - box_width / 2,
+        screen_height / 2 - box_height / 2,
+        box_width,
+        box_height
+    };
+
+    message5_pos = (Vector2){
+        screen_width / 2 - msg1_size.x / 2,
+        message_box3.y + padding_y
+    };
+
+    message6_pos = (Vector2){
+        screen_width / 2 - msg2_size.x / 2,
+        message_box3.y + padding_y + msg1_size.y + line_gap
+    };
+}
 void start_gameplay()
 {
     static int level = 0;
@@ -740,7 +828,8 @@ void start_gameplay()
         DrawRectangleRounded(game_title_posRec, 1.0f, 8, YELLOW);
         DrawRectangleRoundedLinesEx(game_title_posRec, 1.0f, 8, 4, BLACK);
 
-        DrawTextEx(font_play, play_message, play_button_pos, (float)font_play.baseSize + 20, 2, RED);
+        DrawTextEx(font_play, play_message, play_button_pos,
+            (float)font_play.baseSize + 20, 2, RED);
         DrawTextEx(font_play, game_title, game_title_pos, (float)font_play.baseSize + 40, 2, (Color){250, 2, 100, 255});
 
         if (CheckCollisionPointRec(mousepos, play_button_posRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
@@ -757,9 +846,9 @@ void start_gameplay()
                        (Rectangle){planet_position[0].x * CELL, planet_position[0].y * CELL, moonSize, moonSize},
                        (Vector2){0, 0}, 0.0f, WHITE);
 
-        DrawTexturePro(rocketTex[Rocket[0].dir],
-                       (Rectangle){0, 0, rocketTex[Rocket[0].dir].width, rocketTex[Rocket[0].dir].height},
-                       (Rectangle){Rocket[0].pos.x * CELL, Rocket[0].pos.y * CELL, rocketSize, rocketSize},
+        DrawTexturePro(rocketTex[rocket.dir],
+                       (Rectangle){0, 0, rocketTex[rocket.dir].width, rocketTex[rocket.dir].height},
+                       (Rectangle){rocket.pos.x * CELL, rocket.pos.y * CELL, rocketSize, rocketSize},
                        (Vector2){0, 0}, 0.0f, WHITE);
 
         for (int i = 0; i < wallCount1; i++)
@@ -767,26 +856,116 @@ void start_gameplay()
             DrawWall(wall_level1[i]);
         }
 
-        updateRocket(&Rocket[0], wall_level1, wallCount1);
+        updateRocket(&rocket, wall_level1, wallCount1);
 
-        if (is_at_same_place(planet_position[0], Rocket[0].pos))
+        if (is_at_same_place(planet_position[0], rocket.pos))
         {
             level = 2;
         }
         break;
 
     case 2:
-        mousepos = GetMousePosition();
-        DrawRectangleRounded(message_box, 1.0f, 8, YELLOW);
+    mousepos = GetMousePosition();
+    DrawRectangleRounded(message_box, 1.0f, 8, YELLOW);
+    DrawRectangleRoundedLinesEx(message_box, 1.0f, 8, 2, BLACK);
 
-        DrawRectangleRoundedLinesEx(message_box, 1.0f, 8, 2, BLACK);
+    DrawTextEx(font_play, transition_msg1, message1_pos, font_size, spacing, BLACK);
+    DrawTextEx(font_play, transition_msg2, message2_pos, font_size, spacing, BLACK);
 
-        DrawTextEx(font_play, transition_msg1, message1_pos, font_size, spacing, BLACK);
-        DrawTextEx(font_play, transition_msg2, message2_pos, font_size, spacing, BLACK);
+    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))   // শুধু ক্লিক হচ্ছে কিনা টেস্ট
+    {
+        printf("click at (%.1f, %.1f) | box: (%.1f,%.1f,%.1f,%.1f)\n",
+               mousepos.x, mousepos.y,
+               message_box.x, message_box.y, message_box.width, message_box.height);
+    }
 
-        if (CheckCollisionPointRec(mousepos, play_button_posRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+    if (CheckCollisionPointRec(mousepos, message_box) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+    {
+        rocket.pos = rocket_position[1];
+        rocket.dir = DOWN;
+        level = 3;
+    }
+
+    break;
+
+    case 3:
+
+        DrawTexturePro(planet,
+                       (Rectangle){0, 0, planet.width, planet.height},
+                       (Rectangle){planet_position[1].x * CELL, planet_position[1].y * CELL, moonSize, moonSize},
+                       (Vector2){0, 0}, 0.0f, WHITE);
+
+        DrawTexturePro(rocketTex[rocket.dir],
+                       (Rectangle){0, 0, rocketTex[rocket.dir].width, rocketTex[rocket.dir].height},
+                       (Rectangle){rocket.pos.x * CELL, rocket.pos.y * CELL, rocketSize, rocketSize},
+                       (Vector2){0, 0}, 0.0f, WHITE);
+
+        for (int i = 0; i < wallCount2; i++)
         {
-            level = 3;
+            DrawWall(wall_level2[i]);
+        }
+
+        updateRocket(&rocket, wall_level2, wallCount2);
+
+        if (is_at_same_place(planet_position[1], rocket.pos))
+        {
+            level = 4;
+        }
+        break;
+
+    case 4:
+    mousepos = GetMousePosition();
+    DrawRectangleRounded(message_box2, 1.0f, 8, YELLOW);
+    DrawRectangleRoundedLinesEx(message_box2, 1.0f, 8, 2, BLACK);
+
+    DrawTextEx(font_play, transition2_msg1, message3_pos, font_size, spacing, BLACK);
+    DrawTextEx(font_play, transition2_msg2, message4_pos, font_size, spacing, BLACK);
+
+    if (CheckCollisionPointRec(mousepos, message_box2) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+    {
+        rocket.pos = rocket_position[2];
+        rocket.dir = DOWN;
+        level = 5;
+    }
+
+    break;
+
+        case 5:
+
+        DrawTexturePro(planet,
+                       (Rectangle){0, 0, planet.width, planet.height},
+                       (Rectangle){planet_position[2].x * CELL, planet_position[2].y * CELL, moonSize, moonSize},
+                       (Vector2){0, 0}, 0.0f, WHITE);
+
+        DrawTexturePro(rocketTex[rocket.dir],
+                       (Rectangle){0, 0, rocketTex[rocket.dir].width, rocketTex[rocket.dir].height},
+                       (Rectangle){rocket.pos.x * CELL, rocket.pos.y * CELL, rocketSize, rocketSize},
+                       (Vector2){0, 0}, 0.0f, WHITE);
+
+        for (int i = 0; i < wallCount3; i++)
+        {
+            DrawWall(wall_level3[i]);
+        }
+
+        updateRocket(&rocket, wall_level3, wallCount3);
+
+        if (is_at_same_place(planet_position[2], rocket.pos))
+        {
+            level = 6;
+        }
+        break;
+
+    case 6:
+        mousepos = GetMousePosition();
+        DrawRectangleRounded(message_box3, 1.0f, 8, YELLOW);
+        DrawRectangleRoundedLinesEx(message_box3, 1.0f, 8, 2, BLACK);
+
+        DrawTextEx(font_play, transition3_msg1, message5_pos, font_size, spacing, BLACK);
+        DrawTextEx(font_play, transition3_msg2, message6_pos, font_size, spacing, BLACK);
+
+        if (CheckCollisionPointRec(mousepos, message_box3) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+        {
+            level = 7;   
         }
 
         break;
@@ -795,7 +974,6 @@ void start_gameplay()
         break;
     }
 }
-
 int main()
 {
     InitWindow(screen_width, screen_height, "Maze solver");
@@ -809,6 +987,8 @@ int main()
     load_data_0();
     load_data_1();
     load_data_transition_window();
+    load_data_transition_window2();   
+    load_data_transition_window3();
 
     while (!WindowShouldClose())
     {
