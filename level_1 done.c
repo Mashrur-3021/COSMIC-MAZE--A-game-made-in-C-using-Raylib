@@ -43,9 +43,14 @@ Texture2D rocketTex[CNT];
 Texture2D space_background;
 Texture2D planet;
 
+
 const Vector2 rocket_position[] = {{1, 2},{5,13},{1,13}};
 Vector2 planet_position[] = {{9, 9},{7,7},{10,1}};
 // vector arrays
+
+// vector arrays
+const Vector2 rocket_position[] = {{1, 2}};
+Vector2 planet_position[] = {{9, 9}};
 
 Player Rocket[] = {
     {rocketSpeed, DOWN, rocket_position[0]}};
@@ -505,6 +510,8 @@ int wallCount3 = sizeof(wall_level3) / sizeof(Wall);
 
 
 // functions
+// functions
+
 // functions
 
 void DrawWall(Wall w)
