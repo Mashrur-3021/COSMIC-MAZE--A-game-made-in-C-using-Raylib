@@ -79,6 +79,10 @@ Vector2 message5_pos;
 Vector2 message6_pos;
 Rectangle message_box3;
 
+// audio
+Music backgrnd_music;
+Sound clicksound;
+
 float font_size = 30;
 float spacing = 2;
 
@@ -1053,6 +1057,7 @@ void start_gameplay()
 
         if (CheckCollisionPointRec(mousepos, play_button_posRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
         {
+            PlaySound(clicksound);
             level = 1;
         }
 
@@ -1100,6 +1105,7 @@ void start_gameplay()
 
         if (CheckCollisionPointRec(mousepos, message_box) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
         {
+            PlaySound(clicksound);
             rocket.pos = rocket_position[1];
             rocket.dir = DOWN;
             level = 3;
@@ -1142,6 +1148,7 @@ void start_gameplay()
 
         if (CheckCollisionPointRec(mousepos, message_box2) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
         {
+            PlaySound(clicksound);
             rocket.pos = rocket_position[2];
             rocket.dir = DOWN;
             level = 5;
@@ -1184,6 +1191,7 @@ void start_gameplay()
 
         if (CheckCollisionPointRec(mousepos, message_box3) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
         {
+            PlaySound(clicksound);
             rocket.pos = rocket_position[3];
             rocket.dir = LEFT;
             level = 7;
@@ -1226,7 +1234,7 @@ void start_gameplay()
 
         if (CheckCollisionPointRec(mousepos, message_box3) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
         {
-
+            PlaySound(clicksound);
             level = 9;
         }
 
@@ -1242,6 +1250,8 @@ void start_gameplay()
 int main()
 {
     InitWindow(screen_width, screen_height, "Maze solver");
+    InitAudioDevice();
+    SetMasterVolume(0.5f);
     SetTargetFPS(60);
 
     for (int i = 0; i < CNT; i++)
@@ -1255,8 +1265,15 @@ int main()
     load_data_transition_window2();
     load_data_transition_window3();
 
+    backgrnd_music = LoadMusicStream("D:/Maze-explorer/Audio/background.mp3");
+    clicksound = LoadSound("D:/Maze-explorer/Audio/click.wav");
+
+    PlayMusicStream(backgrnd_music);
+
     while (!WindowShouldClose())
     {
+
+        UpdateMusicStream(backgrnd_music);
 
         BeginDrawing();
         ClearBackground(DARKBLUE);
@@ -1270,6 +1287,10 @@ int main()
 
         EndDrawing();
     }
+
+    UnloadMusicStream(backgrnd_music);
+    UnloadSound(clicksound);
+    CloseAudioDevice();
 
     UnloadTexture(planet);
     UnloadTexture(space_background);
