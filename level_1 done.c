@@ -44,7 +44,7 @@ Texture2D space_background;
 Texture2D planet;
 
 // vector arrays
-const Vector2 rocket_position[] = {{2, 9}, {2, 12}, {1, 1}, {2, 12}};
+const Vector2 rocket_position[] = {{2, 9}, {2, 12}, {1, 1}, {2, 11}};
 Vector2 planet_position[] = {{23, 8}, {22, 2}, {15, 13}, {22, 2}};
 
 Player rocket = {rocketSpeed, DOWN, rocket_position[0]};
@@ -1204,13 +1204,13 @@ void DrawWall(Wall w)
     {
         int top = (y1 < y2) ? y1 : y2;
         int height = abs(y2 - y1);
-        DrawRectangle(x1 - half, top - half, THICK, height + THICK, (Color){37, 42, 82, 255});
+        DrawRectangle(x1 - half, top - half, THICK, height + THICK, (Color){27, 42, 82, 255});
     }
     else
     {
         int left = (x1 < x2) ? x1 : x2;
         int width = abs(x2 - x1);
-        DrawRectangle(left - half, y1 - half, width + THICK, THICK, (Color){37, 42, 82, 255});
+        DrawRectangle(left - half, y1 - half, width + THICK, THICK, (Color){27, 42, 82, 255});
     }
 }
 
@@ -1690,6 +1690,7 @@ void start_gameplay()
             PlaySound(clicksound);
             level = 9;
         }
+        break;
 
     case 9:
         break;
