@@ -31,6 +31,20 @@ typedef struct
     Vector2 pos;
 } Player;
 
+typedef enum
+{
+    ZERO_WINDOW,
+    LEVEL_1,
+    TR_WIN_1,
+    LEVEL2,
+    TR_WIN_2,
+    LEVEL_3,
+    TR_WIN_3,
+    LEVEL4,
+    TR_WIN_4,
+    TOTAL_WINDOW,
+} WINDOW_NAME;
+
 // rocket pics directories
 const char *rocketPics[CNT] = {
     "D:/Maze-explorer/rocket/1.png",
@@ -1500,7 +1514,7 @@ void start_gameplay()
 
     switch (level)
     {
-    case 0:
+    case ZERO_WINDOW:
 
         mousepos = GetMousePosition();
         DrawRectangleRounded(play_button_posRec, 1.0f, 8, (Color){10, 15, 40, 255});
@@ -1514,12 +1528,12 @@ void start_gameplay()
         if (CheckCollisionPointRec(mousepos, play_button_posRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
         {
             PlaySound(clicksound);
-            level = 1;
+            level = LEVEL_1;
         }
 
         break;
 
-    case 1:
+    case LEVEL_1:
 
         DrawTexturePro(planet,
                        (Rectangle){0, 0, planet.width, planet.height},
@@ -1541,11 +1555,11 @@ void start_gameplay()
         if (is_at_same_place(planet_position[0], rocket.pos))
         {
             PlaySound(level_up_sound);
-            level = 2;
+            level = TR_WIN_1;
         }
         break;
 
-    case 2:
+    case TR_WIN_1:
         mousepos = GetMousePosition();
         DrawRectangleRounded(message_box, 1.0f, 8, (Color){10, 15, 40, 255});
         DrawRectangleRoundedLinesEx(message_box, 1.0f, 8, 2, BLACK);
@@ -1558,12 +1572,12 @@ void start_gameplay()
             PlaySound(clicksound);
             rocket.pos = rocket_position[1];
             rocket.dir = DOWN;
-            level = 3;
+            level = LEVEL2;
         }
 
         break;
 
-    case 3:
+    case LEVEL2:
 
         DrawTexturePro(planet,
                        (Rectangle){0, 0, planet.width, planet.height},
@@ -1585,11 +1599,11 @@ void start_gameplay()
         if (is_at_same_place(planet_position[1], rocket.pos))
         {
             PlaySound(level_up_sound);
-            level = 4;
+            level = TR_WIN_2;
         }
         break;
 
-    case 4:
+    case TR_WIN_2:
         mousepos = GetMousePosition();
         DrawRectangleRounded(message_box2, 1.0f, 8, (Color){10, 15, 40, 255});
         DrawRectangleRoundedLinesEx(message_box2, 1.0f, 8, 2, BLACK);
@@ -1602,12 +1616,12 @@ void start_gameplay()
             PlaySound(clicksound);
             rocket.pos = rocket_position[2];
             rocket.dir = RIGHT;
-            level = 5;
+            level = LEVEL_3;
         }
 
         break;
 
-    case 5:
+    case LEVEL_3:
 
         DrawTexturePro(planet,
                        (Rectangle){0, 0, planet.width, planet.height},
@@ -1629,11 +1643,11 @@ void start_gameplay()
         if (is_at_same_place(planet_position[2], rocket.pos))
         {
             PlaySound(level_up_sound);
-            level = 6;
+            level = TR_WIN_3;
         }
         break;
 
-    case 6:
+    case TR_WIN_3:
         mousepos = GetMousePosition();
         DrawRectangleRounded(message_box3, 1.0f, 8, (Color){10, 15, 40, 255});
         DrawRectangleRoundedLinesEx(message_box3, 1.0f, 8, 2, BLACK);
@@ -1646,12 +1660,12 @@ void start_gameplay()
             PlaySound(clicksound);
             rocket.pos = rocket_position[3];
             rocket.dir = LEFT;
-            level = 7;
+            level = LEVEL4;
         }
 
         break;
 
-    case 7:
+    case LEVEL4:
 
         DrawTexturePro(planet,
                        (Rectangle){0, 0, planet.width, planet.height},
@@ -1673,11 +1687,11 @@ void start_gameplay()
         if (is_at_same_place(planet_position[3], rocket.pos))
         {
             PlaySound(level_up_sound);
-            level = 8;
+            level = TR_WIN_4;
         }
         break;
 
-    case 8:
+    case TR_WIN_4:
         mousepos = GetMousePosition();
         DrawRectangleRounded(message_box3, 1.0f, 8, (Color){10, 25, 40, 255});
         DrawRectangleRoundedLinesEx(message_box3, 1.0f, 8, 2, BLACK);
@@ -1688,11 +1702,11 @@ void start_gameplay()
         if (CheckCollisionPointRec(mousepos, message_box3) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
         {
             PlaySound(clicksound);
-            level = 9;
+            level = TOTAL_WINDOW;
         }
         break;
 
-    case 9:
+    case TOTAL_WINDOW:
         break;
 
         break;
