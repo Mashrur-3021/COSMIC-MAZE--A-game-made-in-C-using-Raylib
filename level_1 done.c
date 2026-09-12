@@ -1,19 +1,29 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 #include "raylib.h"
 #include "raymath.h"
+#include "Wall.h"
+
+#define LEVEL_COUNT 4
 #define CELL 60
 #define THICK 15
-#define rocketSpeed 2
+#define rocketSpeed 3
 #define rocketSize 30
-#define moonSize 68
-const int screen_height = 900;
-const int screen_width = 1500;
+#define moonSize 42
+#define BLACKHOLE_RADIUS_CELLS 0.45f // how close (in grid cells) counts as "entered"
+#define BLACKHOLE_COOLDOWN 0.6f
+#define PARTICLES_PER_EMITTER 4
+#define MAX_LEVEL_EMITTERS 00
+#define FLAME_SPACING 90.0f     // px between emitters along a wall
+#define FLAME_RISE_HEIGHT 22.0f // how tall each flame lick grows
+#define PLANET_WALL_THICK 6
+#define MAX_NAME_LEN 16
 
-typedef struct
-{
-    int x1, y1, x2, y2;
-} Wall;
+#define screen_height 900
+#define screen_width 1500
+
+Color Button_color = (Color){10, 15, 40, 255};
 
 typedef enum
 {
@@ -34,6 +44,8 @@ typedef struct
 typedef enum
 {
     ZERO_WINDOW,
+    CREDENTIAL,
+    NAME_INPUT,
     LEVEL_1,
     TR_WIN_1,
     LEVEL2,
@@ -44,6 +56,40 @@ typedef enum
     TR_WIN_4,
     TOTAL_WINDOW,
 } WINDOW_NAME;
+
+typedef enum
+{
+    KEY_RED,
+    KEY_GREEN,
+    KEY_YELLOW,
+    KEY_BLUE,
+    KEY_TYPE_COUNT,
+} KeyType;
+
+typedef struct
+{
+    Vector2 pos; // grid position (same units as rocket_position / planet_position)
+    KeyType type;
+    bool collected;
+} Key;
+
+typedef struct
+{
+    float age;
+    float maxLife;
+    float phase;     // sine offset so flames don't all wobble in sync
+    float speed;     // wobble speed
+    float amplitude; // how far it licks side to side
+    float size;
+    bool active;
+} FlameParticle;
+
+typedef struct
+{
+    Vector2 basePos;                                // fixed point on the wall - never moves
+    float spawnTimer;                               // counts down to next particle spawn
+    FlameParticle particles[PARTICLES_PER_EMITTER]; // this emitter's OWN slots, shared with no one
+} FlameEmitter;
 
 // rocket pics directories
 const char *rocketPics[CNT] = {
@@ -58,14 +104,55 @@ Texture2D space_background;
 Texture2D planet;
 
 // vector arrays
-const Vector2 rocket_position[] = {{2, 9}, {2, 12}, {1, 1}, {2, 11}};
+const Vector2 rocket_position[] = {{2, 9}, {2, 12}, {2, 2}, {2, 11}};
 Vector2 planet_position[] = {{23, 8}, {22, 2}, {15, 13}, {22, 2}};
 
+// ===================== BLACK HOLES =====================
+// One linked pair per level. Both points below were checked against every
+// wall rectangle in that level's own wall array (same collision test as
+// hitWall) to confirm the rocket's 30x30 box sits cleanly in open space
+// there, and each pair is placed far apart from each other and from that
+// level's rocket start / planet so they read as two distinct portals.
+Vector2 blackholes_level1[2] = {{6, 10}, {22, 5}};
+Vector2 blackholes_level2[2] = {{5, 12}, {19, 5}};
+Vector2 blackholes_level3[2] = {{2, 4}, {21, 10}};
+Vector2 blackholes_level4[2] = {{5, 11}, {22, 5}};
+
+// seconds of immunity right after a teleport
+
+float teleportCooldown = 0.0f; // counts down after every teleport so the rocket
+                               // doesn't instantly re-trigger the exit hole
+float blackholeAnimTime = 0.0f;
+// =================== END BLACK HOLES ===================
+
+// ===================== COLLECTIBLE KEYS + RED GUARD WALLS =====================
+// Each level has 4 keys (red, green, yellow, blue) scattered through the maze.
+// The planet in every level sits inside a small 1-cell box made of 4 RED walls
+// (built automatically from that level's planet position - see
+// BuildPlanetRedWalls) so the rocket physically cannot reach the planet until
+// every key has been picked up. Once the 4th key is collected, the red walls
+// for that level stop being solid and stop being drawn.
+
+Key keys_level1[KEY_TYPE_COUNT];
+Key keys_level2[KEY_TYPE_COUNT];
+Key keys_level3[KEY_TYPE_COUNT];
+Key keys_level4[KEY_TYPE_COUNT];
+
+Wall redWalls_level1[4];
+Wall redWalls_level2[4];
+Wall redWalls_level3[4];
+Wall redWalls_level4[4];
+// =================== END COLLECTIBLE KEYS + RED GUARD WALLS ===================
+
 Player rocket = {rocketSpeed, DOWN, rocket_position[0]};
+
+char playerName[MAX_NAME_LEN + 1] = "\0";
+int nameLetterCount = 0;
 
 // game messages
 char *game_title = "COSMIC MAZE";
 char *play_message = "PLAY";
+char *name_label = "Name: ";
 char *transition_msg1 = "Level-1 Done!!!";
 char *transition_msg2 = "Click to Move in next level";
 char *transition2_msg1 = "Level-2 Done!!!";
@@ -74,6 +161,10 @@ char *transition3_msg1 = "Level-3 Done!!!";
 char *transition3_msg2 = "Click to Move in next level";
 char *transition4_msg1 = "Level-4 Done!!!";
 char *transition4_msg2 = "Click to Move in next level";
+char *credential_title = "CREDENTIAL";
+char *credential_name1 = "Mujahidul Islam Nafi - 2505095";
+char *credential_name2 = "Md. Mashrur Hasan - 2505115";
+char *back_message = "BACK";
 
 // variables for manu windows
 Font font_play;
@@ -93,6 +184,18 @@ Vector2 message5_pos;
 Vector2 message6_pos;
 Rectangle message_box3;
 
+Vector2 credential_name1_pos;
+Vector2 credential_name2_pos;
+Vector2 credential_back_pos;
+Rectangle credential_back_posRec;
+Vector2 credentialButton_pos;
+Rectangle credentialButton_posRec;
+
+Vector2 name_label_pos;
+Vector2 name_input_text_pos;
+Rectangle name_label_box;
+Rectangle name_input_box;
+
 // audio
 Music backgrnd_music;
 Sound clicksound;
@@ -102,1130 +205,368 @@ Sound level_up_sound;
 float font_size = 30;
 float spacing = 2;
 
-// wall levels
-Wall wall_level1[] = {
-    {0, 0, 25, 0},
-    {0, 15, 25, 15},
-    {0, 0, 0, 15},
-    {25, 0, 25, 15},
-    {1, 1, 2, 1},
-    {2, 1, 2, 2},
-    {2, 1, 3, 1},
-    {3, 1, 4, 1},
-    {4, 2, 5, 2},
-    {5, 2, 5, 3},
-    {5, 3, 6, 3},
-    {6, 2, 6, 3},
-    {6, 2, 7, 2},
-    {7, 2, 7, 3},
-    {7, 3, 8, 3},
-    {8, 3, 8, 4},
-    {8, 4, 9, 4},
-    {9, 4, 9, 5},
-    {9, 5, 10, 5},
-    {10, 5, 10, 6},
-    {10, 6, 11, 6},
-    {11, 5, 11, 6},
-    {11, 4, 11, 5},
-    {11, 3, 11, 4},
-    {11, 3, 12, 3},
-    {12, 2, 12, 3},
-    {12, 2, 13, 2},
-    {13, 2, 13, 3},
-    {13, 3, 13, 4},
-    {13, 4, 13, 5},
-    {13, 5, 13, 6},
-    {13, 6, 14, 6},
-    {14, 6, 15, 6},
-    {15, 6, 15, 7},
-    {15, 7, 16, 7},
-    {16, 6, 16, 7},
-    {16, 6, 17, 6},
-    {17, 5, 17, 6},
-    {17, 4, 17, 5},
-    {17, 4, 18, 4},
-    {18, 4, 18, 5},
-    {18, 5, 18, 6},
-    {18, 6, 19, 6},
-    {19, 6, 19, 7},
-    {19, 7, 20, 7},
-    {20, 7, 20, 8},
-    {20, 8, 21, 8},
-    {21, 8, 22, 8},
-    {21, 10, 22, 10},
-    {1, 2, 1, 3},
-    {1, 3, 1, 4},
-    {1, 4, 1, 5},
-    {1, 6, 2, 6},
-    {1, 5, 1, 6},
-    {2, 5, 2, 6},
-    {2, 5, 3, 5},
-    {3, 4, 3, 5},
-    {3, 4, 4, 4},
-    {4, 4, 4, 5},
-    {4, 5, 5, 5},
-    {5, 5, 6, 5},
-    {6, 5, 6, 6},
-    {6, 6, 6, 7},
-    {6, 5, 7, 5},
-    {7, 6, 7, 7},
-    {8, 7, 8, 8},
-    {8, 8, 9, 8},
-    {9, 7, 9, 8},
-    {9, 7, 10, 7},
-    {10, 7, 10, 8},
-    {10, 8, 11, 8},
-    {11, 7, 11, 8},
-    {11, 7, 12, 7},
-    {12, 6, 12, 7},
-    {12, 5, 12, 6},
-    {12, 7, 13, 7},
-    {13, 7, 13, 8},
-    {13, 8, 14, 8},
-    {14, 8, 14, 9},
-    {14, 9, 15, 9},
-    {15, 8, 15, 9},
-    {15, 8, 16, 8},
-    {16, 8, 16, 9},
-    {16, 9, 17, 9},
-    {17, 8, 17, 9},
-    {17, 8, 18, 8},
-    {18, 8, 18, 9},
-    {18, 9, 19, 9},
-    {19, 9, 19, 10},
-    {19, 10, 20, 10},
-    {20, 9, 20, 10},
-    {20, 9, 21, 9},
-    {21, 9, 21, 10},
-    {5, 1, 6, 1},
-    {7, 1, 8, 1},
-    {9, 1, 10, 1},
-    {10, 1, 10, 2},
-    {10, 2, 11, 2},
-    {11, 1, 11, 2},
-    {11, 1, 12, 1},
-    {12, 1, 13, 1},
-    {13, 1, 14, 1},
-    {14, 1, 15, 1},
-    {15, 1, 16, 1},
-    {16, 1, 17, 1},
-    {17, 1, 18, 1},
-    {18, 1, 19, 1},
-    {19, 1, 20, 1},
-    {20, 1, 21, 1},
-    {21, 1, 22, 1},
-    {22, 1, 23, 1},
-    {24, 1, 24, 2},
-    {24, 2, 24, 3},
-    {23, 3, 24, 3},
-    {23, 2, 23, 3},
-    {22, 2, 23, 2},
-    {21, 2, 22, 2},
-    {20, 2, 20, 3},
-    {20, 3, 20, 4},
-    {20, 5, 20, 6},
-    {20, 6, 21, 6},
-    {21, 6, 22, 6},
-    {22, 6, 23, 6},
-    {23, 6, 23, 7},
-    {23, 7, 24, 7},
-    {22, 7, 22, 8},
-    {14, 2, 14, 3},
-    {14, 3, 14, 4},
-    {14, 4, 15, 4},
-    {15, 3, 15, 4},
-    {15, 3, 16, 3},
-    {16, 3, 16, 4},
-    {16, 4, 16, 5},
-    {15, 5, 16, 5},
-    {17, 3, 18, 3},
-    {19, 4, 20, 4},
-    {19, 5, 20, 5},
-    {24, 6, 24, 7},
-    {24, 5, 24, 6},
-    {23, 5, 24, 5},
-    {23, 4, 23, 5},
-    {22, 4, 23, 4},
-    {21, 4, 22, 4},
-    {21, 3, 21, 4},
-    {21, 3, 22, 3},
-    {24, 4, 25, 4},
-    {24, 7, 25, 7},
-    {3, 6, 4, 6},
-    {1, 7, 2, 7},
-    {3, 7, 4, 7},
-    {3, 7, 3, 8},
-    {3, 8, 4, 8},
-    {2, 3, 2, 4},
-    {5, 4, 6, 4},
-    {8, 5, 8, 6},
-    {6, 9, 7, 9},
-    {6, 8, 7, 8},
-    {6, 8, 6, 9},
-    {5, 9, 6, 9},
-    {5, 9, 5, 10},
-    {3, 9, 4, 9},
-    {3, 11, 4, 11},
-    {3, 11, 3, 12},
-    {1, 11, 2, 11},
-    {2, 11, 3, 11},
-    {1, 8, 1, 9},
-    {1, 7, 1, 8},
-    {1, 11, 1, 12},
-    {1, 12, 1, 13},
-    {1, 13, 1, 14},
-    {2, 13, 2, 14},
-    {2, 13, 3, 13},
-    {3, 13, 3, 14},
-    {3, 14, 4, 14},
-    {24, 14, 25, 14},
-    {23, 14, 24, 14},
-    {22, 14, 23, 14},
-    {5, 14, 6, 14},
-    {7, 14, 8, 14},
-    {23, 10, 24, 10},
-    {24, 9, 24, 10},
-    {24, 9, 25, 9},
-    {9, 14, 9, 15},
-    {10, 14, 10, 15},
-    {9, 14, 10, 14},
-    {10, 13, 11, 13},
-    {10, 12, 10, 13},
-    {9, 12, 10, 12},
-    {9, 12, 9, 13},
-    {8, 13, 9, 13},
-    {8, 12, 8, 13},
-    {7, 12, 8, 12},
-    {7, 12, 7, 13},
-    {6, 13, 7, 13},
-    {6, 12, 6, 13},
-    {5, 12, 6, 12},
-    {5, 12, 5, 13},
-    {4, 13, 5, 13},
-    {4, 12, 4, 13},
-    {5, 11, 6, 11},
-    {7, 11, 8, 11},
-    {8, 10, 8, 11},
-    {7, 10, 8, 10},
-    {9, 11, 10, 11},
-    {10, 11, 11, 11},
-    {11, 11, 12, 11},
-    {9, 9, 10, 9},
-    {10, 9, 11, 9},
-    {11, 9, 12, 9},
-    {12, 9, 13, 9},
-    {13, 9, 14, 9},
-    {12, 11, 13, 11},
-    {13, 11, 14, 11},
-    {14, 11, 15, 11},
-    {15, 11, 15, 12},
-    {14, 12, 15, 12},
-    {12, 12, 13, 12},
-    {12, 12, 12, 13},
-    {13, 13, 14, 13},
-    {14, 13, 14, 14},
-    {15, 13, 15, 14},
-    {15, 13, 16, 13},
-    {16, 12, 16, 13},
-    {16, 11, 16, 12},
-    {16, 11, 17, 11},
-    {17, 10, 17, 11},
-    {17, 10, 18, 10},
-    {18, 10, 18, 11},
-    {18, 11, 19, 11},
-    {19, 11, 19, 12},
-    {19, 12, 20, 12},
-    {20, 12, 21, 12},
-    {21, 11, 21, 12},
-    {21, 11, 22, 11},
-    {22, 10, 22, 11},
-    {16, 14, 17, 14},
-    {17, 13, 17, 14},
-    {17, 12, 17, 13},
-    {17, 12, 18, 12},
-    {18, 12, 18, 13},
-    {18, 13, 18, 14},
-    {18, 14, 19, 14},
-    {19, 13, 19, 14},
-    {19, 13, 20, 13},
-    {20, 13, 20, 14},
-    {20, 14, 21, 14},
-    {21, 13, 21, 14},
-    {21, 13, 22, 13},
-    {22, 12, 22, 13},
-    {22, 12, 23, 12},
-    {23, 11, 23, 12},
-    {23, 11, 24, 11},
-    {24, 11, 24, 12},
-    {23, 13, 24, 13},
-    {12, 14, 12, 15},
-    {12, 14, 13, 14},
-    {17, 2, 18, 2},
-    {19, 2, 19, 3},
-    {18, 2, 19, 2},
-    {15, 2, 16, 2},
-    {5, 7, 5, 8},
-    {5, 6, 5, 7},
-    {4, 6, 5, 6},
-    {4, 1, 5, 1},
-    {21, 7, 22, 7},
-    {21, 6, 21, 7},
-    {8, 13, 8, 14},
-};
+FlameEmitter flameEmitters1[MAX_LEVEL_EMITTERS];
+FlameEmitter flameEmitters2[MAX_LEVEL_EMITTERS];
+FlameEmitter flameEmitters3[MAX_LEVEL_EMITTERS];
+FlameEmitter flameEmitters4[MAX_LEVEL_EMITTERS];
+int flameEmitterCount1 = 0;
+int flameEmitterCount2 = 0;
+int flameEmitterCount3 = 0;
+int flameEmitterCount4 = 0;
 
-int wallCount1 = sizeof(wall_level1) / sizeof(Wall);
+char score_title[64];
+Vector2 score_title_pos;
 
-Wall wall_level2[] = {
-    {0, 0, 25, 0},
-    {0, 15, 25, 15},
-    {0, 0, 0, 15},
-    {25, 0, 25, 15},
-    {2, 11, 3, 11},
-    {3, 10, 3, 11},
-    {3, 10, 4, 10},
-    {4, 9, 4, 10},
-    {4, 9, 5, 9},
-    {5, 8, 5, 9},
-    {6, 8, 6, 9},
-    {5, 8, 6, 8},
-    {7, 7, 7, 8},
-    {6, 9, 7, 9},
-    {7, 8, 7, 9},
-    {7, 7, 8, 7},
-    {8, 6, 8, 7},
-    {8, 6, 9, 6},
-    {9, 5, 9, 6},
-    {10, 4, 10, 5},
-    {10, 4, 11, 4},
-    {11, 3, 11, 4},
-    {11, 3, 12, 3},
-    {12, 2, 12, 3},
-    {12, 2, 13, 2},
-    {13, 1, 13, 2},
-    {13, 1, 14, 1},
-    {14, 1, 15, 1},
-    {15, 1, 16, 1},
-    {16, 1, 17, 1},
-    {17, 1, 18, 1},
-    {18, 1, 19, 1},
-    {19, 1, 20, 1},
-    {20, 1, 21, 1},
-    {3, 12, 4, 12},
-    {4, 11, 4, 12},
-    {4, 11, 5, 11},
-    {5, 10, 5, 11},
-    {5, 10, 6, 10},
-    {6, 10, 6, 11},
-    {7, 11, 8, 11},
-    {8, 10, 8, 11},
-    {8, 10, 9, 10},
-    {8, 9, 9, 9},
-    {9, 8, 9, 9},
-    {8, 8, 9, 8},
-    {9, 7, 9, 8},
-    {10, 7, 11, 7},
-    {10, 6, 10, 7},
-    {10, 6, 11, 6},
-    {11, 5, 11, 6},
-    {12, 4, 12, 5},
-    {11, 5, 12, 5},
-    {12, 4, 13, 4},
-    {13, 3, 13, 4},
-    {13, 3, 14, 3},
-    {14, 2, 14, 3},
-    {16, 2, 16, 3},
-    {16, 3, 16, 4},
-    {16, 4, 17, 4},
-    {17, 3, 17, 4},
-    {17, 3, 18, 3},
-    {18, 2, 18, 3},
-    {18, 2, 19, 2},
-    {15, 4, 15, 5},
-    {15, 3, 15, 4},
-    {16, 5, 17, 5},
-    {17, 5, 18, 5},
-    {18, 4, 18, 5},
-    {18, 4, 19, 4},
-    {19, 3, 19, 4},
-    {19, 3, 20, 3},
-    {19, 2, 20, 2},
-    {24, 1, 25, 1},
-    {23, 1, 24, 1},
-    {22, 1, 23, 1},
-    {21, 1, 22, 1},
-    {21, 1, 21, 2},
-    {20, 2, 21, 2},
-    {15, 2, 16, 2},
-    {24, 3, 24, 4},
-    {22, 4, 22, 5},
-    {23, 4, 23, 5},
-    {23, 5, 23, 6},
-    {23, 5, 24, 5},
-    {24, 5, 24, 6},
-    {23, 6, 23, 7},
-    {22, 6, 22, 7},
-    {22, 8, 22, 9},
-    {23, 9, 23, 10},
-    {22, 10, 22, 11},
-    {23, 11, 23, 12},
-    {23, 8, 24, 8},
-    {21, 8, 22, 8},
-    {21, 7, 22, 7},
-    {22, 7, 23, 7},
-    {21, 6, 22, 6},
-    {21, 5, 22, 5},
-    {20, 5, 21, 5},
-    {20, 5, 20, 6},
-    {19, 6, 20, 6},
-    {19, 6, 19, 7},
-    {20, 7, 20, 8},
-    {19, 7, 20, 7},
-    {18, 6, 19, 6},
-    {17, 6, 18, 6},
-    {17, 6, 17, 7},
-    {16, 6, 17, 6},
-    {16, 6, 16, 7},
-    {15, 6, 16, 6},
-    {20, 4, 21, 4},
-    {21, 3, 21, 4},
-    {13, 5, 14, 5},
-    {13, 5, 13, 6},
-    {12, 6, 13, 6},
-    {12, 6, 12, 7},
-    {12, 7, 13, 7},
-    {13, 7, 13, 8},
-    {12, 8, 13, 8},
-    {12, 8, 12, 9},
-    {11, 9, 12, 9},
-    {11, 8, 11, 9},
-    {10, 8, 11, 8},
-    {10, 8, 10, 9},
-    {10, 10, 11, 10},
-    {11, 10, 12, 10},
-    {13, 9, 13, 10},
-    {12, 10, 13, 10},
-    {13, 9, 14, 9},
-    {14, 9, 14, 10},
-    {14, 10, 15, 10},
-    {15, 9, 15, 10},
-    {15, 8, 15, 9},
-    {14, 8, 15, 8},
-    {15, 8, 16, 8},
-    {15, 7, 15, 8},
-    {14, 6, 14, 7},
-    {7, 5, 7, 6},
-    {7, 4, 7, 5},
-    {7, 4, 8, 4},
-    {8, 4, 8, 5},
-    {9, 3, 9, 4},
-    {8, 3, 9, 3},
-    {7, 3, 8, 3},
-    {7, 2, 7, 3},
-    {6, 2, 7, 2},
-    {6, 2, 6, 3},
-    {5, 3, 6, 3},
-    {5, 3, 5, 4},
-    {4, 4, 5, 4},
-    {4, 4, 4, 5},
-    {4, 5, 5, 5},
-    {5, 5, 6, 5},
-    {6, 4, 6, 5},
-    {5, 6, 6, 6},
-    {4, 6, 5, 6},
-    {3, 6, 4, 6},
-    {3, 6, 3, 7},
-    {2, 7, 3, 7},
-    {2, 7, 2, 8},
-    {1, 8, 2, 8},
-    {1, 9, 2, 9},
-    {2, 9, 2, 10},
-    {1, 9, 1, 10},
-    {2, 9, 3, 9},
-    {3, 8, 4, 8},
-    {4, 7, 4, 8},
-    {4, 7, 5, 7},
-    {4, 13, 5, 13},
-    {6, 13, 7, 13},
-    {7, 12, 8, 12},
-    {7, 13, 8, 13},
-    {8, 13, 9, 13},
-    {8, 12, 9, 12},
-    {9, 13, 10, 13},
-    {9, 12, 10, 12},
-    {10, 13, 11, 13},
-    {10, 12, 11, 12},
-    {11, 12, 12, 12},
-    {11, 13, 12, 13},
-    {12, 13, 13, 13},
-    {11, 11, 12, 11},
-    {9, 11, 10, 11},
-    {12, 11, 12, 12},
-    {14, 13, 15, 13},
-    {14, 11, 15, 11},
-    {15, 11, 16, 11},
-    {16, 10, 16, 11},
-    {16, 9, 16, 10},
-    {16, 9, 17, 9},
-    {17, 8, 18, 8},
-    {18, 9, 18, 10},
-    {18, 9, 19, 9},
-    {19, 8, 19, 9},
-    {15, 12, 15, 13},
-    {15, 12, 16, 12},
-    {16, 12, 16, 13},
-    {16, 13, 17, 13},
-    {17, 12, 17, 13},
-    {17, 11, 17, 12},
-    {17, 11, 18, 11},
-    {18, 11, 18, 12},
-    {18, 12, 18, 13},
-    {18, 13, 19, 13},
-    {19, 12, 19, 13},
-    {19, 12, 20, 12},
-    {20, 11, 20, 12},
-    {19, 11, 20, 11},
-    {19, 10, 19, 11},
-    {19, 10, 20, 10},
-    {20, 9, 20, 10},
-    {20, 9, 21, 9},
-    {21, 9, 21, 10},
-    {21, 10, 21, 11},
-    {21, 11, 21, 12},
-    {21, 12, 22, 12},
-    {22, 12, 22, 13},
-    {22, 13, 23, 13},
-    {23, 13, 24, 13},
-    {24, 13, 24, 14},
-    {6, 14, 7, 14},
-    {3, 14, 4, 14},
-    {1, 14, 2, 14},
-    {5, 14, 5, 15},
-    {14, 13, 14, 14},
-    {14, 14, 14, 15},
-    {20, 13, 21, 13},
-    {20, 13, 20, 14},
-    {19, 14, 20, 14},
-    {17, 14, 18, 14},
-    {16, 14, 17, 14},
-    {15, 14, 16, 14},
-    {21, 13, 21, 14},
-    {21, 14, 22, 14},
-    {9, 14, 10, 14},
-    {11, 14, 12, 14},
-    {13, 13, 13, 14},
-    {12, 14, 13, 14},
-    {11, 1, 12, 1},
-    {9, 1, 10, 1},
-    {7, 1, 8, 1},
-    {8, 1, 8, 2},
-    {8, 2, 9, 2},
-    {10, 2, 10, 3},
-    {9, 2, 10, 2},
-    {6, 1, 7, 1},
-    {5, 1, 6, 1},
-    {5, 1, 5, 2},
-    {4, 2, 5, 2},
-    {4, 1, 4, 2},
-    {3, 1, 4, 1},
-    {1, 1, 2, 1},
-    {1, 1, 1, 2},
-    {1, 3, 1, 4},
-    {0, 5, 1, 5},
-    {1, 6, 1, 7},
-    {1, 7, 1, 8},
-    {2, 5, 2, 6},
-    {2, 5, 3, 5},
-    {3, 4, 3, 5},
-    {3, 3, 3, 4},
-    {2, 3, 3, 3},
-    {1, 12, 1, 13},
-    {1, 11, 1, 12},
-    {15, 5, 15, 6},
-    {21, 5, 21, 6},
-    {9, 6, 10, 6},
-};
+Vector2 level_label_pos[LEVEL_COUNT];
+Vector2 level_time_pos[LEVEL_COUNT];
 
-int wallCount2 = sizeof(wall_level2) / sizeof(Wall);
+char *exit_message = "EXIT";
+char *play_again_message = "PLAY AGAIN";
 
-Wall wall_level3[] = {
-    {0, 0, 25, 0},
-    {0, 15, 25, 15},
-    {0, 0, 0, 15},
-    {25, 0, 25, 15},
-    {1, 3, 2, 3},
-    {2, 3, 3, 3},
-    {3, 2, 3, 3},
-    {3, 2, 4, 2},
-    {4, 2, 4, 3},
-    {4, 3, 5, 3},
-    {5, 3, 6, 3},
-    {6, 3, 6, 4},
-    {6, 4, 7, 4},
-    {7, 3, 8, 3},
-    {7, 3, 7, 4},
-    {8, 3, 8, 4},
-    {8, 4, 9, 4},
-    {9, 3, 9, 4},
-    {9, 3, 10, 3},
-    {10, 3, 10, 4},
-    {10, 4, 11, 4},
-    {11, 4, 11, 5},
-    {11, 5, 12, 5},
-    {12, 5, 12, 6},
-    {12, 6, 13, 6},
-    {13, 6, 14, 6},
-    {15, 6, 16, 6},
-    {16, 5, 16, 6},
-    {16, 5, 17, 5},
-    {17, 4, 17, 5},
-    {17, 4, 18, 4},
-    {18, 4, 19, 4},
-    {19, 4, 20, 4},
-    {20, 4, 21, 4},
-    {21, 4, 22, 4},
-    {22, 4, 23, 4},
-    {23, 4, 23, 5},
-    {23, 5, 23, 6},
-    {23, 6, 23, 7},
-    {22, 7, 23, 7},
-    {22, 7, 22, 8},
-    {21, 8, 22, 8},
-    {21, 8, 21, 9},
-    {21, 9, 22, 9},
-    {22, 9, 22, 10},
-    {22, 10, 22, 11},
-    {22, 11, 22, 12},
-    {21, 12, 22, 12},
-    {20, 12, 21, 12},
-    {20, 12, 20, 13},
-    {18, 12, 19, 12},
-    {17, 12, 18, 12},
-    {4, 1, 5, 1},
-    {6, 1, 7, 1},
-    {6, 2, 7, 2},
-    {7, 1, 8, 1},
-    {8, 1, 9, 1},
-    {9, 1, 10, 1},
-    {10, 1, 11, 1},
-    {11, 1, 12, 1},
-    {12, 1, 13, 1},
-    {14, 1, 14, 2},
-    {13, 1, 14, 1},
-    {17, 1, 18, 1},
-    {18, 0, 18, 1},
-    {8, 2, 9, 2},
-    {11, 2, 11, 3},
-    {11, 3, 12, 3},
-    {11, 2, 12, 2},
-    {13, 2, 13, 3},
-    {12, 4, 13, 4},
-    {14, 4, 14, 5},
-    {13, 5, 14, 5},
-    {14, 4, 15, 4},
-    {15, 4, 15, 5},
-    {15, 4, 16, 4},
-    {16, 3, 16, 4},
-    {15, 3, 16, 3},
-    {15, 2, 15, 3},
-    {15, 2, 16, 2},
-    {16, 2, 17, 2},
-    {17, 2, 17, 3},
-    {17, 3, 18, 3},
-    {18, 2, 18, 3},
-    {18, 2, 19, 2},
-    {19, 2, 19, 3},
-    {19, 3, 20, 3},
-    {20, 2, 20, 3},
-    {21, 2, 21, 3},
-    {21, 3, 22, 3},
-    {22, 2, 22, 3},
-    {22, 2, 23, 2},
-    {23, 2, 23, 3},
-    {21, 1, 21, 2},
-    {21, 1, 22, 1},
-    {23, 1, 24, 1},
-    {24, 1, 24, 2},
-    {24, 3, 25, 3},
-    {24, 2, 24, 3},
-    {23, 8, 24, 8},
-    {24, 8, 24, 9},
-    {24, 6, 24, 7},
-    {24, 5, 24, 6},
-    {24, 5, 25, 5},
-    {1, 3, 1, 4},
-    {1, 4, 1, 5},
-    {1, 5, 1, 6},
-    {1, 6, 1, 7},
-    {1, 7, 1, 8},
-    {1, 8, 1, 9},
-    {1, 9, 1, 10},
-    {1, 5, 2, 5},
-    {2, 5, 3, 5},
-    {3, 5, 3, 6},
-    {3, 6, 4, 6},
-    {4, 5, 4, 6},
-    {4, 4, 4, 5},
-    {4, 4, 5, 4},
-    {5, 4, 5, 5},
-    {5, 5, 5, 6},
-    {5, 6, 6, 6},
-    {6, 6, 7, 6},
-    {7, 5, 7, 6},
-    {8, 5, 8, 6},
-    {8, 6, 8, 7},
-    {8, 6, 9, 6},
-    {9, 6, 9, 7},
-    {9, 7, 9, 8},
-    {1, 10, 2, 10},
-    {1, 10, 1, 11},
-    {1, 11, 1, 12},
-    {1, 11, 2, 11},
-    {2, 11, 2, 12},
-    {1, 12, 1, 13},
-    {2, 12, 2, 13},
-    {2, 13, 3, 13},
-    {3, 12, 3, 13},
-    {3, 12, 4, 12},
-    {4, 11, 4, 12},
-    {4, 11, 5, 11},
-    {5, 11, 5, 12},
-    {5, 12, 6, 12},
-    {6, 11, 6, 12},
-    {6, 11, 7, 11},
-    {3, 14, 4, 14},
-    {4, 13, 4, 14},
-    {4, 13, 5, 13},
-    {12, 14, 12, 15},
-    {12, 13, 12, 14},
-    {12, 13, 13, 13},
-    {13, 14, 13, 15},
-    {13, 12, 13, 13},
-    {13, 12, 14, 12},
-    {14, 12, 15, 12},
-    {15, 11, 15, 12},
-    {17, 11, 17, 12},
-    {17, 10, 17, 11},
-    {15, 10, 15, 11},
-    {16, 10, 16, 11},
-    {16, 9, 16, 10},
-    {15, 9, 15, 10},
-    {15, 9, 16, 9},
-    {17, 9, 17, 10},
-    {17, 9, 18, 9},
-    {18, 8, 18, 9},
-    {17, 8, 18, 8},
-    {17, 7, 17, 8},
-    {16, 7, 17, 7},
-    {16, 7, 16, 8},
-    {15, 8, 16, 8},
-    {14, 8, 15, 8},
-    {14, 8, 14, 9},
-    {13, 9, 14, 9},
-    {13, 9, 13, 10},
-    {13, 11, 14, 11},
-    {12, 10, 13, 10},
-    {12, 10, 12, 11},
-    {14, 10, 14, 11},
-    {11, 12, 12, 12},
-    {11, 11, 12, 11},
-    {11, 12, 11, 13},
-    {10, 13, 11, 13},
-    {10, 12, 10, 13},
-    {9, 12, 10, 12},
-    {10, 11, 10, 12},
-    {9, 12, 9, 13},
-    {9, 14, 10, 14},
-    {10, 7, 11, 7},
-    {11, 6, 11, 7},
-    {12, 7, 13, 7},
-    {19, 10, 19, 11},
-    {19, 10, 20, 10},
-    {20, 9, 20, 10},
-    {20, 8, 20, 9},
-    {20, 7, 21, 7},
-    {20, 7, 20, 8},
-    {21, 6, 21, 7},
-    {21, 6, 22, 6},
-    {22, 5, 22, 6},
-    {21, 5, 22, 5},
-    {20, 5, 20, 6},
-    {19, 6, 20, 6},
-    {19, 5, 19, 6},
-    {18, 5, 19, 5},
-    {18, 5, 18, 6},
-    {18, 6, 18, 7},
-    {18, 7, 19, 7},
-    {19, 7, 19, 8},
-    {19, 8, 19, 9},
-    {18, 10, 18, 11},
-    {20, 11, 21, 11},
-    {19, 12, 19, 13},
-    {19, 14, 20, 14},
-    {18, 13, 18, 14},
-    {17, 14, 17, 15},
-    {18, 13, 19, 13},
-    {20, 14, 21, 14},
-    {21, 13, 22, 13},
-    {21, 13, 21, 14},
-    {22, 13, 22, 14},
-    {22, 14, 23, 14},
-    {23, 13, 23, 14},
-    {23, 13, 24, 13},
-    {24, 12, 24, 13},
-    {23, 12, 24, 12},
-    {23, 11, 23, 12},
-    {23, 11, 24, 11},
-    {24, 10, 24, 11},
-    {23, 9, 23, 10},
-    {23, 9, 24, 9},
-    {14, 9, 14, 10},
-    {11, 13, 11, 14},
-    {8, 14, 9, 14},
-    {8, 13, 8, 14},
-    {8, 12, 8, 13},
-    {8, 11, 8, 12},
-    {8, 11, 9, 11},
-    {9, 10, 9, 11},
-    {9, 10, 10, 10},
-    {10, 10, 11, 10},
-    {10, 9, 10, 10},
-    {10, 9, 11, 9},
-    {11, 8, 11, 9},
-    {10, 8, 11, 8},
-    {8, 9, 9, 9},
-    {7, 9, 8, 9},
-    {5, 9, 6, 9},
-    {6, 9, 7, 9},
-    {4, 9, 5, 9},
-    {3, 9, 4, 9},
-    {2, 9, 3, 9},
-    {2, 8, 2, 9},
-    {2, 8, 3, 8},
-    {4, 7, 4, 8},
-    {3, 8, 4, 8},
-    {4, 7, 5, 7},
-    {5, 7, 5, 8},
-    {5, 8, 6, 8},
-    {7, 7, 7, 8},
-    {14, 6, 14, 7},
-    {12, 8, 12, 9},
-    {12, 8, 13, 8},
-    {13, 7, 13, 8},
-    {6, 14, 7, 14},
-    {7, 13, 7, 14},
-    {6, 13, 7, 13},
-    {5, 14, 5, 15},
-    {2, 14, 2, 15},
-    {1, 14, 1, 15},
-};
-int wallCount3 = sizeof(wall_level3) / sizeof(Wall);
+Vector2 exit_button_pos;
+Rectangle exit_button_posRec;
 
-Wall wall_level4[] = {
-    {0, 0, 25, 0},
-    {0, 15, 25, 15},
-    {0, 0, 0, 15},
-    {25, 0, 25, 15},
-    {11, 13, 12, 13},
-    {11, 12, 11, 13},
-    {10, 12, 11, 12},
-    {9, 12, 10, 12},
-    {9, 11, 9, 12},
-    {9, 11, 10, 11},
-    {10, 11, 11, 11},
-    {11, 11, 12, 11},
-    {12, 11, 13, 11},
-    {13, 11, 14, 11},
-    {14, 11, 15, 11},
-    {15, 11, 16, 11},
-    {16, 11, 17, 11},
-    {17, 10, 17, 11},
-    {17, 10, 18, 10},
-    {18, 10, 18, 11},
-    {18, 11, 18, 12},
-    {18, 12, 19, 12},
-    {19, 12, 20, 12},
-    {20, 11, 20, 12},
-    {21, 10, 21, 11},
-    {20, 11, 21, 11},
-    {21, 9, 21, 10},
-    {21, 8, 21, 9},
-    {21, 7, 21, 8},
-    {21, 6, 21, 7},
-    {21, 6, 22, 6},
-    {22, 6, 23, 6},
-    {23, 6, 24, 6},
-    {24, 5, 24, 6},
-    {23, 5, 24, 5},
-    {23, 4, 23, 5},
-    {23, 3, 23, 4},
-    {23, 3, 24, 3},
-    {24, 2, 24, 3},
-    {24, 1, 24, 2},
-    {23, 1, 24, 1},
-    {22, 1, 23, 1},
-    {21, 1, 22, 1},
-    {20, 1, 21, 1},
-    {19, 1, 20, 1},
-    {18, 1, 19, 1},
-    {18, 1, 18, 2},
-    {17, 2, 18, 2},
-    {16, 2, 17, 2},
-    {15, 4, 16, 4},
-    {15, 3, 15, 4},
-    {16, 4, 17, 4},
-    {17, 3, 17, 4},
-    {17, 3, 18, 3},
-    {18, 3, 19, 3},
-    {19, 2, 19, 3},
-    {19, 2, 20, 2},
-    {20, 2, 21, 2},
-    {21, 2, 22, 2},
-    {22, 2, 22, 3},
-    {21, 3, 22, 3},
-    {20, 3, 21, 3},
-    {20, 3, 20, 4},
-    {19, 4, 20, 4},
-    {18, 4, 19, 4},
-    {18, 4, 18, 5},
-    {18, 5, 19, 5},
-    {19, 5, 19, 6},
-    {18, 6, 19, 6},
-    {18, 6, 18, 7},
-    {18, 7, 19, 7},
-    {19, 7, 20, 7},
-    {20, 6, 20, 7},
-    {20, 5, 20, 6},
-    {20, 5, 21, 5},
-    {21, 4, 21, 5},
-    {21, 4, 22, 4},
-    {19, 8, 20, 8},
-    {20, 8, 20, 9},
-    {19, 9, 20, 9},
-    {19, 9, 19, 10},
-    {18, 9, 19, 9},
-    {18, 8, 18, 9},
-    {17, 8, 18, 8},
-    {16, 8, 17, 8},
-    {15, 8, 16, 8},
-    {15, 9, 16, 9},
-    {16, 9, 17, 9},
-    {15, 10, 16, 10},
-    {17, 8, 17, 9},
-    {10, 14, 11, 14},
-    {10, 13, 10, 14},
-    {9, 13, 10, 13},
-    {8, 13, 9, 13},
-    {8, 12, 8, 13},
-    {8, 11, 8, 12},
-    {8, 10, 8, 11},
-    {8, 10, 9, 10},
-    {9, 10, 10, 10},
-    {10, 10, 11, 10},
-    {11, 10, 12, 10},
-    {13, 10, 14, 10},
-    {14, 9, 14, 10},
-    {12, 9, 12, 10},
-    {13, 9, 13, 10},
-    {13, 8, 13, 9},
-    {12, 8, 12, 9},
-    {11, 8, 12, 8},
-    {11, 7, 11, 8},
-    {10, 7, 11, 7},
-    {10, 6, 10, 7},
-    {10, 5, 10, 6},
-    {10, 5, 11, 5},
-    {11, 4, 11, 5},
-    {11, 3, 11, 4},
-    {12, 7, 13, 7},
-    {12, 6, 12, 7},
-    {12, 6, 13, 6},
-    {13, 5, 13, 6},
-    {12, 5, 13, 5},
-    {12, 4, 12, 5},
-    {12, 3, 12, 4},
-    {12, 1, 12, 2},
-    {11, 1, 11, 2},
-    {12, 2, 12, 3},
-    {14, 7, 14, 8},
-    {14, 7, 15, 7},
-    {15, 6, 15, 7},
-    {14, 6, 15, 6},
-    {14, 5, 14, 6},
-    {14, 5, 15, 5},
-    {13, 4, 14, 4},
-    {14, 4, 14, 5},
-    {13, 4, 13, 5},
-    {16, 1, 17, 1},
-    {17, 0, 17, 1},
-    {13, 1, 14, 1},
-    {15, 1, 15, 2},
-    {16, 6, 16, 7},
-    {17, 5, 17, 6},
-    {9, 1, 10, 1},
-    {8, 1, 9, 1},
-    {7, 2, 8, 2},
-    {8, 14, 9, 14},
-    {6, 14, 7, 14},
-    {6, 13, 6, 14},
-    {7, 12, 7, 13},
-    {7, 11, 7, 12},
-    {6, 11, 6, 12},
-    {6, 10, 6, 11},
-    {6, 9, 6, 10},
-    {6, 8, 6, 9},
-    {6, 8, 7, 8},
-    {7, 8, 8, 8},
-    {8, 6, 8, 7},
-    {8, 5, 8, 6},
-    {8, 5, 9, 5},
-    {9, 4, 9, 5},
-    {9, 4, 10, 4},
-    {10, 3, 10, 4},
-    {10, 2, 10, 3},
-    {10, 2, 11, 2},
-    {7, 9, 7, 10},
-    {7, 9, 8, 9},
-    {8, 9, 9, 9},
-    {9, 9, 10, 9},
-    {10, 9, 11, 9},
-    {9, 8, 10, 8},
-    {9, 7, 9, 8},
-    {9, 6, 9, 7},
-    {1, 1, 2, 1},
-    {2, 1, 3, 1},
-    {4, 0, 4, 1},
-    {3, 1, 4, 1},
-    {5, 1, 5, 2},
-    {7, 1, 8, 1},
-    {7, 0, 7, 1},
-    {8, 3, 9, 3},
-    {9, 2, 9, 3},
-    {9, 2, 10, 2},
-    {6, 3, 7, 3},
-    {6, 3, 6, 4},
-    {6, 4, 6, 5},
-    {6, 5, 6, 6},
-    {6, 6, 7, 6},
-    {7, 6, 8, 6},
-    {7, 4, 7, 5},
-    {7, 2, 7, 3},
-    {8, 2, 8, 3},
-    {7, 4, 8, 4},
-    {13, 13, 13, 14},
-    {13, 12, 14, 12},
-    {14, 12, 14, 13},
-    {15, 13, 15, 14},
-    {14, 14, 15, 14},
-    {15, 13, 16, 13},
-    {16, 12, 16, 13},
-    {16, 12, 17, 12},
-    {17, 12, 17, 13},
-    {16, 14, 17, 14},
-    {17, 13, 17, 14},
-    {18, 13, 18, 14},
-    {18, 14, 19, 14},
-    {19, 13, 19, 14},
-    {19, 13, 20, 13},
-    {20, 13, 20, 14},
-    {20, 14, 21, 14},
-    {21, 13, 21, 14},
-    {21, 13, 22, 13},
-    {22, 13, 22, 14},
-    {22, 14, 23, 14},
-    {23, 12, 23, 13},
-    {22, 12, 23, 12},
-    {22, 11, 22, 12},
-    {22, 11, 23, 11},
-    {23, 10, 23, 11},
-    {22, 10, 23, 10},
-    {22, 9, 22, 10},
-    {22, 9, 23, 9},
-    {23, 8, 23, 9},
-    {22, 8, 23, 8},
-    {22, 7, 22, 8},
-    {22, 7, 23, 7},
-    {24, 12, 24, 13},
-    {24, 11, 24, 12},
-    {24, 10, 24, 11},
-    {24, 9, 24, 10},
-    {24, 8, 24, 9},
-    {24, 7, 24, 8},
-    {11, 1, 12, 1},
-    {5, 2, 6, 2},
-    {4, 2, 4, 3},
-    {3, 2, 4, 2},
-    {3, 2, 3, 3},
-    {2, 3, 3, 3},
-    {3, 1, 3, 2},
-    {1, 2, 2, 2},
-    {1, 2, 1, 3},
-    {1, 4, 1, 5},
-    {1, 4, 2, 4},
-    {2, 5, 3, 5},
-    {2, 4, 3, 4},
-    {3, 5, 4, 5},
-    {3, 4, 4, 4},
-    {4, 5, 5, 5},
-    {5, 3, 5, 4},
-    {2, 5, 2, 6},
-    {1, 6, 1, 7},
-    {1, 7, 2, 7},
-    {2, 7, 2, 8},
-    {1, 8, 2, 8},
-    {1, 9, 2, 9},
-    {2, 9, 3, 9},
-    {3, 9, 4, 9},
-    {4, 8, 4, 9},
-    {4, 8, 5, 8},
-    {5, 7, 5, 8},
-    {4, 7, 5, 7},
-    {4, 6, 4, 7},
-    {3, 6, 3, 7},
-    {3, 6, 4, 6},
-    {3, 7, 3, 8},
-    {6, 1, 6, 2},
-    {6, 0, 6, 1},
-    {6, 2, 6, 3},
-    {5, 9, 5, 10},
-    {3, 10, 4, 10},
-    {1, 10, 2, 10},
-    {1, 11, 1, 12},
-    {2, 12, 3, 12},
-    {4, 12, 5, 12},
-    {1, 14, 2, 14},
-    {3, 13, 3, 14},
-    {3, 12, 3, 13},
-    {4, 13, 4, 14},
-    {5, 13, 5, 14},
-    {3, 11, 4, 11},
-    {1, 13, 2, 13},
-};
+Vector2 playagain_button_pos;
+Rectangle playagain_button_posRec;
 
-int wallCount4 = sizeof(wall_level4) / sizeof(wall_level4[0]);
+bool exitGameRequested = false;
 
-// functions
-// functions
+static Color GetButtonColor(Rectangle rect, Vector2 mouse, Color baseColor)
+{
+    return CheckCollisionPointRec(mouse, rect) ? WHITE : baseColor;
+}
 
-// functions
+// ===================== HUD: LEVEL LABEL + STOPWATCH + LEADERBOARD =====================
+// The very top row of every maze (y = 0 .. CELL) is outside the actual playable
+// border of the maze (the real border wall sits at y = 1 cell down), so it's free
+// screen real-estate. We use that strip to show which level is active and a live
+// stopwatch, and we persist each level's best completion time to disk as a tiny
+// leaderboard.
 
-void DrawWall(Wall w)
+const char *leaderboardFilePath = "D:/Maze-explorer/leaderboard.txt";
+
+double levelElapsedTime = 0.0; // seconds elapsed on the current level's stopwatch
+bool timerRunning = false;
+int currentLevelNumber = 1;              // 1-based, shown in the HUD
+float levelTimes[LEVEL_COUNT] = {0};     // most recent completion time per level
+float bestLevelTimes[LEVEL_COUNT] = {0}; // leaderboard: best (lowest) time per level, 0 = no record yet
+
+void LoadLeaderboard(void)
+{
+    FILE *f = fopen(leaderboardFilePath, "r");
+    if (f == NULL)
+        return;
+
+    for (int i = 0; i < LEVEL_COUNT; i++)
+    {
+        if (fscanf(f, "%f", &bestLevelTimes[i]) != 1)
+        {
+            bestLevelTimes[i] = 0.0f;
+            break;
+        }
+    }
+    fclose(f);
+}
+
+void SaveLeaderboard(void)
+{
+    FILE *f = fopen(leaderboardFilePath, "w");
+    if (f == NULL)
+        return;
+
+    for (int i = 0; i < LEVEL_COUNT; i++)
+        fprintf(f, "%.2f\n", bestLevelTimes[i]);
+    fclose(f);
+}
+
+// Starts (or restarts) the stopwatch for whichever level is about to begin.
+void StartLevelTimer(void)
+{
+    levelElapsedTime = 0.0;
+    timerRunning = true;
+}
+
+// Stops the stopwatch, records the run, and updates the on-disk leaderboard
+// if this run beat the previous best for that level.
+void StopLevelTimer(int levelIndex)
+{
+    timerRunning = false;
+    levelTimes[levelIndex] = (float)levelElapsedTime;
+
+    if (bestLevelTimes[levelIndex] <= 0.0f || levelElapsedTime < bestLevelTimes[levelIndex])
+    {
+        bestLevelTimes[levelIndex] = (float)levelElapsedTime;
+        SaveLeaderboard();
+    }
+}
+
+// Formats seconds as mm:ss.xx
+const char *FormatTime(float seconds)
+{
+    static char buf[32];
+    if (seconds < 0)
+        seconds = 0;
+    int minutes = (int)seconds / 60;
+    float secs = seconds - minutes * 60;
+    snprintf(buf, sizeof(buf), "%02d:%05.2f", minutes, secs);
+    return buf;
+}
+
+// Draws the level indicator + live stopwatch + best time inside the free strip
+// above the maze border (0 <= y < CELL).
+void DrawHUD(int levelNumber, int keysRemaining)
+{
+    DrawRectangle(0, 0, screen_width, CELL, Fade((Color){10, 15, 40, 255}, 0.6f));
+    DrawLine(0, CELL, screen_width, CELL, Fade(BLUE, 0.5f));
+
+    char levelText[48];
+    snprintf(levelText, sizeof(levelText), "LEVEL %d    KEYS LEFT: %d", levelNumber, keysRemaining);
+
+    char timeText[40];
+    snprintf(timeText, sizeof(timeText), "TIME  %s", FormatTime((float)levelElapsedTime));
+
+    char bestText[48];
+    float best = bestLevelTimes[levelNumber - 1];
+    if (best > 0.0f)
+        snprintf(bestText, sizeof(bestText), "BEST  %s", FormatTime(best));
+
+    else
+        snprintf(bestText, sizeof(bestText), "BEST  --:--.--");
+
+    Vector2 timeSize = MeasureTextEx(font_play, timeText, 26, spacing);
+
+    DrawTextEx(font_play, levelText, (Vector2){20, 14}, 26, spacing, (Color){170, 210, 255, 255});
+    DrawTextEx(font_play, timeText, (Vector2){screen_width / 2 - timeSize.x / 2, 14}, 26, spacing, (Color){0, 255, 180, 255});
+    DrawTextEx(font_play, bestText, (Vector2){screen_width - 260, 14}, 22, spacing, (Color){255, 200, 0, 255});
+}
+// =================== END HUD: LEVEL LABEL + STOPWATCH + LEADERBOARD ===================
+
+// ===================== WALL-ANCHORED FLAME SYSTEM =====================
+// Design: fixed emitter points are laid out along every wall segment once,
+// at level-build time. Each emitter OWNS a tiny fixed number of its own
+// particle slots (PARTICLES_PER_EMITTER) instead of pulling from one shared
+// pool. This matters a lot: with a shared pool, the emitters near the START
+// of the wall array (top of the maze) grab a free slot first every single
+// frame, so once the pool fills up the emitters further down the array
+// (bottom of the maze) can never find a free slot and never get to light -
+// that was exactly why the lower part of the maze stayed dark. Giving every
+// emitter its own private slots means every wall gets to flicker, no matter
+// where it sits in the array or the maze.
+//
+// Each particle only rises straight up from its own emitter and wobbles
+// sideways with a smooth sine wave (not random jitter), tapering and
+// changing color as it climbs - which reads as a flame lick instead of
+// scattered sparks.
+
+void InitFireParticles(void)
+{
+    // no shared pool to clear anymore - every emitter's particles start
+    // inactive automatically when the emitter is created (see AddEmitter).
+    // kept as a no-op so main() doesn't need to change.
+}
+
+void AddEmitter(FlameEmitter *arr, int *count, Vector2 pos)
+{
+    if (*count >= MAX_LEVEL_EMITTERS)
+        return;
+    FlameEmitter *e = &arr[*count];
+    e->basePos = pos;
+    e->spawnTimer = (float)GetRandomValue(0, 30) / 100.0f;
+    for (int i = 0; i < PARTICLES_PER_EMITTER; i++)
+        e->particles[i].active = false;
+    (*count)++;
+}
+
+// Walks every wall segment and drops fixed emitter points along it, spaced
+// roughly FLAME_SPACING pixels apart. IMPORTANT: each point is placed at the
+// MIDPOINT of its own sub-segment (never at t=0 or t=1), so it never lands
+// on a corner shared with a neighboring wall. That guarantees every single
+// wall - even a short 1-cell one - gets its own dedicated flame, instead of
+// only the shared corners lighting up.
+void BuildFlameEmitters(Wall *walls, int wallCount, FlameEmitter *arr, int *count)
+{
+    *count = 0;
+    for (int i = 0; i < wallCount; i++)
+    {
+        Wall w = walls[i];
+        float x1 = w.x1 * CELL, y1 = w.y1 * CELL;
+        float x2 = w.x2 * CELL, y2 = w.y2 * CELL;
+        float len = (x1 == x2) ? fabsf(y2 - y1) : fabsf(x2 - x1);
+
+        int segs = (int)(len / FLAME_SPACING + 0.5f);
+
+        if (segs < 1)
+            segs = 1;
+
+        for (int s = 0; s < segs; s++)
+        {
+            float t = ((float)s + 0.5f) / (float)segs; // midpoint of sub-segment
+            AddEmitter(arr, count, (Vector2){x1 + (x2 - x1) * t, y1 + (y2 - y1) * t});
+        }
+    }
+}
+
+Color LerpColor(Color a, Color b, float t)
+{
+    if (t < 0)
+        t = 0;
+    if (t > 1)
+        t = 1;
+    return (Color){
+        (unsigned char)(a.r + (b.r - a.r) * t),
+        (unsigned char)(a.g + (b.g - a.g) * t),
+        (unsigned char)(a.b + (b.b - a.b) * t),
+        (unsigned char)(a.a + (b.a - a.a) * t)};
+}
+
+void UpdateAndDrawFlames(FlameEmitter *emitters, int emitterCount, float dt)
+{
+    Color baseColor = (Color){255, 240, 150, 255}; // hot near the wall
+    Color midColor = (Color){255, 120, 0, 255};    // orange body
+    Color tipColor = (Color){180, 20, 0, 0};       // fades to nothing
+
+    for (int i = 0; i < emitterCount; i++)
+    {
+        FlameEmitter *e = &emitters[i];
+
+        // this emitter (re)lights one of ITS OWN slots - it never has to
+        // wait on any other wall's flame to free up a slot
+        e->spawnTimer -= dt;
+        if (e->spawnTimer <= 0)
+        {
+            for (int k = 0; k < PARTICLES_PER_EMITTER; k++)
+            {
+                if (!e->particles[k].active)
+                {
+                    FlameParticle *p = &e->particles[k];
+                    p->age = 0.0f;
+                    p->maxLife = (float)GetRandomValue(20, 35) / 100.0f;
+                    p->phase = (float)GetRandomValue(0, 628) / 100.0f;
+                    p->speed = (float)GetRandomValue(100, 500) / 100.0f;
+                    p->amplitude = (float)GetRandomValue(2, 5);
+                    p->size = (float)GetRandomValue(4, 7);
+                    p->active = true;
+                    break;
+                }
+            }
+            e->spawnTimer = (float)GetRandomValue(1, 3) / 100.0f; // 0.01 - 0.03s
+        }
+
+        for (int k = 0; k < PARTICLES_PER_EMITTER; k++)
+        {
+            FlameParticle *p = &e->particles[k];
+            if (!p->active)
+                continue;
+
+            p->age += dt;
+            if (p->age >= p->maxLife)
+            {
+                p->active = false;
+                continue;
+            }
+
+            float ageRatio = p->age / p->maxLife; // 0 = at wall, 1 = flame tip
+
+            // rises straight up from its own anchor, wobbling side to side
+            Vector2 pos;
+            pos.y = e->basePos.y - FLAME_RISE_HEIGHT * ageRatio;
+            pos.x = e->basePos.x + sinf(p->age * p->speed + p->phase) * p->amplitude * ageRatio;
+
+            float size = p->size * (1.0f - ageRatio * 0.75f); // tapers to a point
+
+            Color c;
+            if (ageRatio < 0.5f)
+                c = LerpColor(baseColor, midColor, ageRatio / 0.5f);
+            else
+                c = LerpColor(midColor, tipColor, (ageRatio - 0.5f) / 0.5f);
+
+            DrawCircleV(pos, size, c);
+        }
+    }
+}
+// =================== END WALL-ANCHORED FLAME SYSTEM ===================
+
+// ===================== BLACK HOLE TELEPORT + VISUAL =====================
+bool NearBlackHole(Vector2 rocketPos, Vector2 holePos, float radiusCells)
+{
+    return Vector2Distance(rocketPos, holePos) < radiusCells;
+}
+
+// Checks the rocket against both ends of a level's black hole pair. If it's
+// inside one (and not still on cooldown from a previous jump), returns true
+// and writes the OTHER hole's position into outPos so the caller can move
+// the rocket there.
+bool CheckBlackHoleTeleport(Vector2 rocketPos, Vector2 *holes, Vector2 *outPos)
+{
+    if (teleportCooldown > 0.0f)
+        return false;
+    false;
+
+    for (int i = 0; i < 2; i++)
+    {
+        if (NearBlackHole(rocketPos, holes[i], BLACKHOLE_RADIUS_CELLS))
+        {
+            *outPos = holes[1 - i];
+            return true;
+        }
+    }
+    return false;
+}
+
+// Draws a small swirling portal: particles spiral inward and fade/shrink as
+// they approach the core, animated purely from elapsed time (t) so every
+// hole on screen can share one clock and still look alive.
+void DrawBlackHole(Vector2 gridPos, float t)
+{
+    Vector2 center = {gridPos.x * CELL, gridPos.y * CELL};
+
+    for (int i = 1; i <= 12; i++)
+    {
+        float angle = t * 3.2f + i * (2.0f * PI / 12.0f);
+        float radiusT = fmodf(t * 0.7f + i * 0.083f, 1.0f); // 0 = outer rim, 1 = core
+        float r = Lerp(30.0f, 3.0f, radiusT);
+        float px = center.x + cosf(angle) * r;
+        float py = center.y + sinf(angle) * r;
+        float size = Lerp(5.0f, 1.0f, radiusT);
+        Color c = LerpColor((Color){170, 90, 255, 255}, (Color){15, 0, 30, 0}, radiusT);
+        DrawCircleV((Vector2){px, py}, size, c);
+    }
+
+    DrawCircleV(center, 11, (Color){5, 0, 15, 255}); // event horizon core
+    DrawCircleLines((int)center.x, (int)center.y, 15, Fade((Color){170, 90, 255, 255}, 0.6f));
+}
+// =================== END BLACK HOLE TELEPORT + VISUAL ===================
+
+// thinner than the maze walls (THICK = 15)
+
+void DrawWallThick(Wall w, Color color, int thickness)
 {
     int x1 = w.x1 * CELL, y1 = w.y1 * CELL;
     int x2 = w.x2 * CELL, y2 = w.y2 * CELL;
-    int half = THICK / 2;
+    int half = thickness / 2;
 
     if (x1 == x2)
     {
         int top = (y1 < y2) ? y1 : y2;
         int height = abs(y2 - y1);
-        DrawRectangle(x1 - half, top - half, THICK, height + THICK, (Color){27, 42, 82, 255});
+        DrawRectangle(x1 - half, top - half, thickness, height + thickness, color);
     }
     else
     {
         int left = (x1 < x2) ? x1 : x2;
         int width = abs(x2 - x1);
-        DrawRectangle(left - half, y1 - half, width + THICK, THICK, (Color){27, 42, 82, 255});
+        DrawRectangle(left - half, y1 - half, width + thickness, thickness, color);
     }
+}
+
+void DrawWallColored(Wall w, Color color)
+{
+    DrawWallThick(w, color, THICK);
+}
+
+void DrawWall(Wall w)
+{
+    DrawWallColored(w, (Color){30, 50, 100, 255});
 }
 
 bool hitWall(Vector2 rocket_pos, Wall *level, int n)
@@ -1266,6 +607,18 @@ bool hitWall(Vector2 rocket_pos, Wall *level, int n)
     return false;
 }
 
+// Draws the planet centered inside its single grid cell, so at the new
+// (smaller) moonSize it never pokes past the thin red guard walls
+// surrounding it.
+void DrawPlanetCentered(Texture2D tex, Vector2 gridPos)
+{
+    float offset = (CELL - moonSize) / 2.0f;
+    DrawTexturePro(tex,
+                   (Rectangle){0, 0, tex.width, tex.height},
+                   (Rectangle){gridPos.x * CELL + offset, gridPos.y * CELL + offset, moonSize, moonSize},
+                   (Vector2){0, 0}, 0.0f, WHITE);
+}
+
 bool is_at_same_place(Vector2 planet_pos, Vector2 rocket_pos)
 {
     int rx = (int)(rocket_pos.x + 0.0f);
@@ -1278,7 +631,198 @@ bool is_at_same_place(Vector2 planet_pos, Vector2 rocket_pos)
         return false;
 }
 
-void updateRocket(Player *rocket, Wall wall_level[], int wall_count)
+// ===================== KEY SYSTEM HELPERS =====================
+
+// Returns the color used to draw a given key type.
+Color GetKeyColor(KeyType t)
+{
+    switch (t)
+    {
+    case KEY_RED:
+        return RED;
+    case KEY_GREEN:
+        return GREEN;
+    case KEY_YELLOW:
+        return YELLOW;
+    case KEY_BLUE:
+        return BLUE;
+    default:
+        return WHITE;
+    }
+}
+
+// A grid cell is "free" if a rocket-sized box placed there does not collide
+// with any wall in that level - reuses the exact same test hitWall() already
+// uses for rocket movement, so a cell that passes this check is guaranteed
+// to be a legal place to stand.
+bool CellFree(Vector2 gridPos, Wall *walls, int wallCount)
+{
+    return !hitWall(gridPos, walls, wallCount);
+}
+
+// Spirals outward from `start` (in whole-cell rings) looking for the first
+// free cell that is also at least `minDist` grid cells away from every point
+// in `avoid`. Guarantees the returned cell never sits inside a wall, since it
+// is only ever accepted after passing CellFree().
+Vector2 FindOpenCellNear(Vector2 start, Wall *walls, int wallCount, Vector2 *avoid, int avoidCount, float minDist, int gridMaxX, int gridMaxY)
+{
+    for (int radius = 0; radius <= 30; radius++)
+    {
+        for (int dy = -radius; dy <= radius; dy++)
+        {
+            for (int dx = -radius; dx <= radius; dx++)
+            {
+                if (radius > 0 && abs(dx) != radius && abs(dy) != radius)
+                    continue; // only walk the outer ring of this radius
+
+                int gx = (int)start.x + dx;
+                int gy = (int)start.y + dy;
+                if (gx < 1 || gy < 1 || gx > gridMaxX || gy > gridMaxY)
+                    continue;
+
+                Vector2 candidate = {(float)gx, (float)gy};
+                if (!CellFree(candidate, walls, wallCount))
+                    continue;
+
+                bool tooClose = false;
+                for (int i = 0; i < avoidCount; i++)
+                {
+                    if (Vector2Distance(candidate, avoid[i]) < minDist)
+                    {
+                        tooClose = true;
+                        break;
+                    }
+                }
+                if (tooClose)
+                    continue;
+
+                return candidate;
+            }
+        }
+    }
+    return start; // fallback - should not happen on a real maze
+}
+
+// Places all 4 keys for one level. Seeds one search per quadrant of the maze
+// so the keys end up spread out, then nudges each seed to the nearest free
+// cell that isn't too close to the rocket start, the planet, the black
+// holes, or any key already placed.
+void PlaceKeys(Key keys[KEY_TYPE_COUNT], Wall *walls, int wallCount, Vector2 rocketStart, Vector2 planetPos, Vector2 *blackholes, int gridMaxX, int gridMaxY)
+{
+    Vector2 avoid[8];
+    int avoidCount = 0;
+    avoid[avoidCount++] = rocketStart;
+    avoid[avoidCount++] = planetPos;
+    avoid[avoidCount++] = blackholes[0];
+    avoid[avoidCount++] = blackholes[1];
+
+    Vector2 seeds[KEY_TYPE_COUNT] = {
+        {gridMaxX * 0.25f, gridMaxY * 0.3f},
+        {gridMaxX * 0.75f, gridMaxY * 0.3f},
+        {gridMaxX * 0.25f, gridMaxY * 0.75f},
+        {gridMaxX * 0.75f, gridMaxY * 0.75f},
+    };
+
+    for (int i = 0; i < KEY_TYPE_COUNT; i++)
+    {
+        Vector2 pos = FindOpenCellNear(seeds[i], walls, wallCount, avoid, avoidCount, 1.6f, gridMaxX, gridMaxY);
+        keys[i].pos = pos;
+        keys[i].type = (KeyType)i;
+        keys[i].collected = false;
+        avoid[avoidCount++] = pos;
+    }
+}
+
+// Builds the 4 red guard walls that box in exactly the single grid cell the
+// planet sits in (top / bottom / left / right edges of that cell). Computed
+// automatically from the planet's own position, so it always seals the
+// planet off correctly no matter which level it's called for.
+void BuildPlanetRedWalls(Vector2 planetPos, Wall redWalls[4])
+{
+    int px = (int)planetPos.x;
+    int py = (int)planetPos.y;
+    redWalls[0] = (Wall){px, py, px + 1, py};         // top
+    redWalls[1] = (Wall){px, py + 1, px + 1, py + 1}; // bottom
+    redWalls[2] = (Wall){px, py, px, py + 1};         // left
+    redWalls[3] = (Wall){px + 1, py, px + 1, py + 1}; // right
+}
+
+int CountKeysCollected(Key keys[KEY_TYPE_COUNT])
+{
+    int c = 0;
+    for (int i = 0; i < KEY_TYPE_COUNT; i++)
+        if (keys[i].collected)
+            c++;
+    return c;
+}
+
+bool AllKeysCollected(Key keys[KEY_TYPE_COUNT])
+{
+    return CountKeysCollected(keys) == KEY_TYPE_COUNT;
+}
+
+// Checks the rocket against every not-yet-collected key in this level and
+// marks it collected if the rocket is close enough.
+void UpdateKeyPickups(Key keys[KEY_TYPE_COUNT], Vector2 rocketPos)
+{
+    for (int i = 0; i < KEY_TYPE_COUNT; i++)
+    {
+        if (!keys[i].collected && Vector2Distance(rocketPos, keys[i].pos) < 0.55f)
+        {
+            keys[i].collected = true;
+            PlaySound(clicksound);
+        }
+    }
+}
+
+// Draws every key that hasn't been collected yet as a small realistic key
+// silhouette: a ring-shaped bow (head), a shaft, and two teeth at the end -
+// instead of a plain dot with a bump.
+void DrawKeys(Key keys[KEY_TYPE_COUNT], float t)
+{
+    for (int i = 0; i < KEY_TYPE_COUNT; i++)
+    {
+        if (keys[i].collected)
+            continue;
+
+        float cx = keys[i].pos.x * CELL + CELL / 2.0f;
+        float cy = keys[i].pos.y * CELL + CELL / 2.0f;
+        float bob = sinf(t * 3.0f + i * 1.7f) * 4.0f;
+        cy += bob;
+        Color c = GetKeyColor(keys[i].type);
+
+        float bowOuterR = 8.0f;
+        float bowInnerR = 4.5f;
+        float shaftLen = 15.0f;
+        float shaftThick = 3.0f;
+
+        float bowCx = cx - shaftLen / 2.0f - bowOuterR + shaftThick;
+        float bowCy = cy;
+
+        // bow: a ring, so the middle reads as a hole like a real key head
+        DrawRing((Vector2){bowCx, bowCy}, bowInnerR, bowOuterR, 0, 360, 24, c);
+        DrawCircleLines((int)bowCx, (int)bowCy, bowOuterR, BLACK);
+        DrawCircleLines((int)bowCx, (int)bowCy, bowInnerR, BLACK);
+
+        // shaft, running from the bow to the teeth
+        float shaftStartX = bowCx + bowOuterR - shaftThick;
+        Rectangle shaftRec = {shaftStartX, cy - shaftThick / 2.0f, shaftLen, shaftThick};
+        DrawRectangleRec(shaftRec, c);
+        DrawRectangleLinesEx(shaftRec, 1, BLACK);
+
+        // teeth: two notches of different length off the end of the shaft
+        float teethX = shaftStartX + shaftLen;
+        Rectangle tooth1 = {teethX - 5, cy + shaftThick / 2.0f, 4, 5};
+        Rectangle tooth2 = {teethX - 1, cy + shaftThick / 2.0f, 3, 8};
+        DrawRectangleRec(tooth1, c);
+        DrawRectangleRec(tooth2, c);
+        DrawRectangleLinesEx(tooth1, 1, BLACK);
+        DrawRectangleLinesEx(tooth2, 1, BLACK);
+    }
+}
+// =================== END KEY SYSTEM HELPERS ===================
+
+void updateRocket(Player *rocket, Wall wall_level[], int wall_count, Wall redWalls[4], bool redWallsActive)
 {
     float dt = GetFrameTime();
     Direction pressed = rocket->dir;
@@ -1322,7 +866,8 @@ void updateRocket(Player *rocket, Wall wall_level[], int wall_count)
             case UP:
                 Vector2 next_pos = rocket->pos;
                 next_pos.y = rocket->pos.y - rocket->speed * dt;
-                if (!hitWall(next_pos, wall_level, wall_count))
+                bool blockedUp = hitWall(next_pos, wall_level, wall_count) || (redWallsActive && hitWall(next_pos, redWalls, 4));
+                if (!blockedUp)
                 {
                     rocket->pos = next_pos;
                     if (rocket->pos.y < 0)
@@ -1330,7 +875,7 @@ void updateRocket(Player *rocket, Wall wall_level[], int wall_count)
                         rocket->pos.y = 0;
                     }
                 }
-                else if (hitWall(next_pos, wall_level, wall_count))
+                else
                 {
                     PlaySound(crashsound);
                 }
@@ -1339,7 +884,8 @@ void updateRocket(Player *rocket, Wall wall_level[], int wall_count)
             case DOWN:
                 next_pos = rocket->pos;
                 next_pos.y = rocket->pos.y + rocket->speed * dt;
-                if (!hitWall(next_pos, wall_level, wall_count))
+                bool blockedDown = hitWall(next_pos, wall_level, wall_count) || (redWallsActive && hitWall(next_pos, redWalls, 4));
+                if (!blockedDown)
                 {
                     rocket->pos = next_pos;
                     if (rocket->pos.y > screen_height)
@@ -1347,7 +893,7 @@ void updateRocket(Player *rocket, Wall wall_level[], int wall_count)
                         rocket->pos.y = screen_height;
                     }
                 }
-                else if (hitWall(next_pos, wall_level, wall_count))
+                else
                 {
                     PlaySound(crashsound);
                 }
@@ -1356,7 +902,8 @@ void updateRocket(Player *rocket, Wall wall_level[], int wall_count)
             case RIGHT:
                 next_pos = rocket->pos;
                 next_pos.x = rocket->pos.x + rocket->speed * dt;
-                if (!hitWall(next_pos, wall_level, wall_count))
+                bool blockedRight = hitWall(next_pos, wall_level, wall_count) || (redWallsActive && hitWall(next_pos, redWalls, 4));
+                if (!blockedRight)
                 {
                     rocket->pos = next_pos;
                     if (rocket->pos.x > screen_width)
@@ -1364,7 +911,7 @@ void updateRocket(Player *rocket, Wall wall_level[], int wall_count)
                         rocket->pos.x = screen_width;
                     }
                 }
-                else if (hitWall(next_pos, wall_level, wall_count))
+                else
                 {
                     PlaySound(crashsound);
                 }
@@ -1373,7 +920,8 @@ void updateRocket(Player *rocket, Wall wall_level[], int wall_count)
             case LEFT:
                 next_pos = rocket->pos;
                 next_pos.x = rocket->pos.x - rocket->speed * dt;
-                if (!hitWall(next_pos, wall_level, wall_count))
+                bool blockedLeft = hitWall(next_pos, wall_level, wall_count) || (redWallsActive && hitWall(next_pos, redWalls, 4));
+                if (!blockedLeft)
                 {
                     rocket->pos = next_pos;
                     if (rocket->pos.x < 0)
@@ -1381,7 +929,7 @@ void updateRocket(Player *rocket, Wall wall_level[], int wall_count)
                         rocket->pos.x = 0;
                     }
                 }
-                else if (hitWall(next_pos, wall_level, wall_count))
+                else
                 {
                     PlaySound(crashsound);
                 }
@@ -1396,6 +944,8 @@ void updateRocket(Player *rocket, Wall wall_level[], int wall_count)
 
 void load_data_0()
 {
+    float paddingX = 30;
+    float paddingY = 15;
 
     font_play = LoadFont("D:/Raylib project/Fonts/ALIEN CYBERNETICS.ttf");
     play_button_pos = (Vector2){screen_width / 2 - MeasureTextEx(font_play, play_message, (float)font_play.baseSize + 20, 2).x / 2,
@@ -1404,8 +954,13 @@ void load_data_0()
     game_title_pos = (Vector2){screen_width / 2 - MeasureTextEx(font_play, game_title, (float)font_play.baseSize + 40, 4).x / 2,
                                screen_height / 10 - MeasureTextEx(font_play, game_title, (float)font_play.baseSize + 40, 4).y / 2};
 
-    float paddingX = 30;
-    float paddingY = 15;
+    credentialButton_pos = (Vector2){screen_width / 2 - MeasureTextEx(font_play, credential_title, (float)font_play.baseSize + 20, 2).x / 2,
+                                     screen_height / 2 + 60 - MeasureTextEx(font_play, credential_title, (float)font_play.baseSize, 2).y / 2};
+
+    credentialButton_posRec = (Rectangle){credentialButton_pos.x - paddingX,
+                                          credentialButton_pos.y - paddingY,
+                                          MeasureTextEx(font_play, credential_title, (float)font_play.baseSize + 20, 2).x + paddingX * 2,
+                                          MeasureTextEx(font_play, credential_title, (float)font_play.baseSize + 20, 2).y + paddingY * 2};
 
     play_button_posRec = (Rectangle){play_button_pos.x - paddingX,
                                      play_button_pos.y - paddingY,
@@ -1416,6 +971,61 @@ void load_data_0()
                                     game_title_pos.y - paddingY,
                                     MeasureTextEx(font_play, game_title, (float)font_play.baseSize + 40, 4).x + paddingX * 4,
                                     MeasureTextEx(font_play, game_title, (float)font_play.baseSize + 40, 4).y / 2 + paddingY * 4};
+}
+
+void load_credentials()
+{
+    float line_gap = 20;
+
+    Vector2 name1_size = MeasureTextEx(font_play, credential_name1, font_size, spacing);
+    Vector2 name2_size = MeasureTextEx(font_play, credential_name2, font_size, spacing);
+
+    float names_total_height = name1_size.y + name2_size.y + line_gap;
+
+    credential_name1_pos = (Vector2){
+        screen_width / 2 - name1_size.x / 2,
+        screen_height / 2 - names_total_height / 2};
+
+    credential_name2_pos = (Vector2){
+        screen_width / 2 - name2_size.x / 2,
+        credential_name1_pos.y + name1_size.y + line_gap};
+
+    credential_back_pos = (Vector2){30, 30};
+
+    Vector2 back_size = MeasureTextEx(font_play, back_message, (float)font_play.baseSize + 30, 2);
+
+    float paddingX = 20;
+    float paddingY = 15;
+
+    credential_back_posRec = (Rectangle){
+        credential_back_pos.x - paddingX,
+        credential_back_pos.y - paddingY,
+        back_size.x + paddingX * 2,
+        back_size.y + paddingY * 2};
+}
+
+void load_data_name_window()
+{
+    float boxHeight = 60;
+    float labelBoxWidth = 120;
+    float inputBoxWidth = 300;
+    float gap = 10;
+
+    float totalWidth = labelBoxWidth + gap + inputBoxWidth;
+    float startX = screen_width / 2 - totalWidth / 2;
+    float boxY = screen_height / 2 - boxHeight / 2;
+
+    name_label_box = (Rectangle){startX, boxY, labelBoxWidth, boxHeight};
+    name_input_box = (Rectangle){startX + labelBoxWidth + gap, boxY, inputBoxWidth, boxHeight};
+
+    Vector2 label_size = MeasureTextEx(font_play, name_label, font_size, spacing);
+    name_label_pos = (Vector2){
+        name_label_box.x + name_label_box.width / 2 - label_size.x / 2,
+        name_label_box.y + name_label_box.height / 2 - label_size.y / 2};
+
+    name_input_text_pos = (Vector2){
+        name_input_box.x + 15,
+        name_input_box.y + name_input_box.height / 2 - font_size / 2};
 }
 
 void load_data_1()
@@ -1452,6 +1062,7 @@ void load_data_transition_window()
         screen_width / 2 - msg2_size.x / 2,
         message_box.y + padding_y + msg1_size.y + line_gap};
 }
+
 void load_data_transition_window2()
 {
     float padding_x = 50;
@@ -1480,6 +1091,7 @@ void load_data_transition_window2()
         screen_width / 2 - msg2_size.x / 2,
         message_box2.y + padding_y + msg1_size.y + line_gap};
 }
+
 void load_data_transition_window3()
 {
     float padding_x = 50;
@@ -1508,6 +1120,65 @@ void load_data_transition_window3()
         screen_width / 2 - msg2_size.x / 2,
         message_box3.y + padding_y + msg1_size.y + line_gap};
 }
+
+void load_data_total_window()
+{
+    float padding_x = 50;
+    float padding_y = 30;
+    float line_gap = 15;
+    float label_to_time_gap = 45;
+
+    // ---- Title: "Score of <playerName>" ----
+    snprintf(score_title, sizeof(score_title), "Score of %s", playerName);
+    Vector2 title_size = MeasureTextEx(font_play, score_title, (float)font_play.baseSize + 20, 2);
+    score_title_pos = (Vector2){
+        screen_width / 2 - title_size.x / 2,
+        screen_height / 10};
+
+    // ---- Level rows (Level 1..4 + their time) ----
+    float rows_start_y = score_title_pos.y + title_size.y + 60;
+    float row_start_x = screen_width / 2 - 150; // left edge of the whole block
+
+    for (int i = 0; i < LEVEL_COUNT; i++)
+    {
+        char levelLabel[16];
+        snprintf(levelLabel, sizeof(levelLabel), "Level %d", i + 1);
+        Vector2 label_size = MeasureTextEx(font_play, levelLabel, font_size, spacing);
+
+        level_label_pos[i] = (Vector2){
+            row_start_x,
+            rows_start_y + i * (label_size.y + line_gap)};
+
+        level_time_pos[i] = (Vector2){
+            row_start_x + label_size.x + label_to_time_gap,
+            level_label_pos[i].y};
+    }
+
+    // ---- EXIT button (left side) ----
+    Vector2 exit_size = MeasureTextEx(font_play, exit_message, (float)font_play.baseSize + 20, 2);
+    exit_button_pos = (Vector2){
+        screen_width / 2 - 250 - exit_size.x / 2,
+        screen_height - 120};
+
+    exit_button_posRec = (Rectangle){
+        exit_button_pos.x - padding_x,
+        exit_button_pos.y - padding_y,
+        exit_size.x + padding_x * 2,
+        exit_size.y + padding_y * 2};
+
+    // ---- PLAY AGAIN button (right side) ----
+    Vector2 playagain_size = MeasureTextEx(font_play, play_again_message, (float)font_play.baseSize + 20, 2);
+    playagain_button_pos = (Vector2){
+        screen_width / 2 + 250 - playagain_size.x / 2,
+        screen_height - 120};
+
+    playagain_button_posRec = (Rectangle){
+        playagain_button_pos.x - padding_x,
+        playagain_button_pos.y - padding_y,
+        playagain_size.x + padding_x * 2,
+        playagain_size.y + padding_y * 2};
+}
+
 void start_gameplay()
 {
     static int level = 0;
@@ -1517,28 +1188,106 @@ void start_gameplay()
     case ZERO_WINDOW:
 
         mousepos = GetMousePosition();
-        DrawRectangleRounded(play_button_posRec, 1.0f, 8, (Color){10, 15, 40, 255});
-        DrawRectangleRoundedLinesEx(play_button_posRec, 1.0f, 8, 2, BLACK);
-        DrawRectangleRounded(game_title_posRec, 1.0f, 8, (Color){10, 15, 40, 255});
-        DrawRectangleRoundedLinesEx(game_title_posRec, 1.0f, 8, 4, BLACK);
+        {
+            Color playBtnColor = GetButtonColor(play_button_posRec, mousepos, Button_color);
+            Color credentialBtnColor = GetButtonColor(credentialButton_posRec, mousepos, Button_color);
+
+            DrawRectangleRounded(play_button_posRec, 1.0f, 8, playBtnColor);
+            DrawRectangleRoundedLinesEx(play_button_posRec, 1.0f, 8, 2, BLACK);
+            DrawRectangleRounded(game_title_posRec, 1.0f, 8, Button_color);
+            DrawRectangleRoundedLinesEx(game_title_posRec, 1.0f, 8, 4, BLACK);
+            DrawRectangleRounded(credentialButton_posRec, 1.0f, 8, credentialBtnColor);
+            DrawRectangleRoundedLinesEx(credentialButton_posRec, 1.0f, 8, 2, BLACK);
+        }
 
         DrawTextEx(font_play, play_message, play_button_pos, (float)font_play.baseSize + 20, 2, BLUE);
         DrawTextEx(font_play, game_title, game_title_pos, (float)font_play.baseSize + 40, 2, BLUE);
+        DrawTextEx(font_play, credential_title, credentialButton_pos, (float)font_play.baseSize + 20, 2, BLUE);
 
         if (CheckCollisionPointRec(mousepos, play_button_posRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
         {
             PlaySound(clicksound);
-            level = LEVEL_1;
+            currentLevelNumber = 1;
+            StartLevelTimer();
+            level = NAME_INPUT;
+        }
+
+        if (CheckCollisionPointRec(mousepos, credentialButton_posRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+        {
+            PlaySound(clicksound);
+            level = CREDENTIAL;
         }
 
         break;
 
+    case CREDENTIAL:
+        mousepos = GetMousePosition();
+        DrawTextEx(font_play, credential_name1, credential_name1_pos, (float)font_play.baseSize + 10, 2, GOLD);
+        DrawTextEx(font_play, credential_name2, credential_name2_pos, (float)font_play.baseSize + 10, 2, GOLD);
+
+        {
+            Color backBtnColor = GetButtonColor(credential_back_posRec, mousepos, Button_color);
+            DrawRectangleRounded(credential_back_posRec, 1.0f, 8, backBtnColor);
+        }
+        DrawTextEx(font_play, back_message, credential_back_pos, (float)font_play.baseSize + 30, 2, BLUE);
+
+        if (CheckCollisionPointRec(mousepos, credential_back_posRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+        {
+            PlaySound(clicksound);
+            level = ZERO_WINDOW;
+        }
+        break;
+
+    case NAME_INPUT:
+    {
+        DrawRectangleRounded(name_label_box, 0.3f, 8, (Color){10, 15, 40, 255});
+        DrawRectangleRoundedLinesEx(name_label_box, 0.3f, 8, 2, BLACK);
+        DrawTextEx(font_play, name_label, name_label_pos, font_size, spacing, GOLD);
+
+        DrawRectangleRounded(name_input_box, 0.3f, 8, (Color){10, 15, 40, 255});
+        DrawRectangleRoundedLinesEx(name_input_box, 0.3f, 8, 2, BLACK);
+        DrawTextEx(font_play, playerName, name_input_text_pos, font_size, spacing, GOLD);
+
+        int key = GetCharPressed();
+        while (key > 0)
+        {
+            if (nameLetterCount < MAX_NAME_LEN)
+            {
+                playerName[nameLetterCount] = (char)key;
+                nameLetterCount++;
+                playerName[nameLetterCount] = '\0';
+            }
+            key = GetCharPressed();
+        }
+
+        // backspace
+        if (IsKeyPressed(KEY_BACKSPACE) && nameLetterCount > 0)
+        {
+            nameLetterCount--;
+            playerName[nameLetterCount] = '\0';
+        }
+
+        // Enter submits only if name is non-empty
+        if (IsKeyPressed(KEY_ENTER) && nameLetterCount > 0)
+        {
+            PlaySound(clicksound);
+            currentLevelNumber = 1;
+            StartLevelTimer();
+            level = LEVEL_1;
+        }
+
+        break;
+    }
+
     case LEVEL_1:
 
-        DrawTexturePro(planet,
-                       (Rectangle){0, 0, planet.width, planet.height},
-                       (Rectangle){planet_position[0].x * CELL, planet_position[0].y * CELL, moonSize, moonSize},
-                       (Vector2){0, 0}, 0.0f, WHITE);
+        if (timerRunning)
+            levelElapsedTime += GetFrameTime();
+        if (teleportCooldown > 0.0f)
+            teleportCooldown -= GetFrameTime();
+        blackholeAnimTime += GetFrameTime();
+
+        DrawPlanetCentered(planet, planet_position[0]);
 
         DrawTexturePro(rocketTex[rocket.dir],
                        (Rectangle){0, 0, rocketTex[rocket.dir].width, rocketTex[rocket.dir].height},
@@ -1550,28 +1299,67 @@ void start_gameplay()
             DrawWall(wall_level1[i]);
         }
 
-        updateRocket(&rocket, wall_level1, wallCount1);
+        if (!AllKeysCollected(keys_level1))
+        {
+            for (int i = 0; i < 4; i++)
+                DrawWallThick(redWalls_level1[i], RED, PLANET_WALL_THICK);
+        }
 
-        if (is_at_same_place(planet_position[0], rocket.pos))
+        DrawKeys(keys_level1, blackholeAnimTime);
+
+        DrawBlackHole(blackholes_level1[0], blackholeAnimTime);
+        DrawBlackHole(blackholes_level1[1], blackholeAnimTime);
+
+        UpdateAndDrawFlames(flameEmitters1, flameEmitterCount1, GetFrameTime());
+
+        updateRocket(&rocket, wall_level1, wallCount1, redWalls_level1, !AllKeysCollected(keys_level1));
+        UpdateKeyPickups(keys_level1, rocket.pos);
+
+        {
+            Vector2 teleportDest;
+            if (CheckBlackHoleTeleport(rocket.pos, blackholes_level1, &teleportDest))
+            {
+                rocket.pos = teleportDest;
+                teleportCooldown = BLACKHOLE_COOLDOWN;
+                PlaySound(clicksound);
+            }
+        }
+
+        DrawHUD(1, KEY_TYPE_COUNT - CountKeysCollected(keys_level1));
+
+        if (AllKeysCollected(keys_level1) && is_at_same_place(planet_position[0], rocket.pos))
         {
             PlaySound(level_up_sound);
+            StopLevelTimer(0);
             level = TR_WIN_1;
         }
         break;
 
     case TR_WIN_1:
         mousepos = GetMousePosition();
-        DrawRectangleRounded(message_box, 1.0f, 8, (Color){10, 15, 40, 255});
+        {
+            Color nextBtnColor = GetButtonColor(message_box, mousepos, Button_color);
+            DrawRectangleRounded(message_box, 1.0f, 8, nextBtnColor);
+        }
         DrawRectangleRoundedLinesEx(message_box, 1.0f, 8, 2, BLACK);
 
         DrawTextEx(font_play, transition_msg1, message1_pos, font_size, spacing, BLUE);
         DrawTextEx(font_play, transition_msg2, message2_pos, font_size, spacing, BLUE);
+
+        {
+            char resultText[64];
+            snprintf(resultText, sizeof(resultText), "Your Time: %s   Best: %s", FormatTime(levelTimes[0]), FormatTime(bestLevelTimes[0]));
+            Vector2 resultSize = MeasureTextEx(font_play, resultText, 22, spacing);
+            DrawTextEx(font_play, resultText, (Vector2){screen_width / 2 - resultSize.x / 2, message_box.y + message_box.height + 15}, 22, spacing, GOLD);
+        }
 
         if (CheckCollisionPointRec(mousepos, message_box) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
         {
             PlaySound(clicksound);
             rocket.pos = rocket_position[1];
             rocket.dir = DOWN;
+            currentLevelNumber = 2;
+            StartLevelTimer();
             level = LEVEL2;
         }
 
@@ -1579,10 +1367,13 @@ void start_gameplay()
 
     case LEVEL2:
 
-        DrawTexturePro(planet,
-                       (Rectangle){0, 0, planet.width, planet.height},
-                       (Rectangle){planet_position[1].x * CELL, planet_position[1].y * CELL, moonSize, moonSize},
-                       (Vector2){0, 0}, 0.0f, WHITE);
+        if (timerRunning)
+            levelElapsedTime += GetFrameTime();
+        if (teleportCooldown > 0.0f)
+            teleportCooldown -= GetFrameTime();
+        blackholeAnimTime += GetFrameTime();
+
+        DrawPlanetCentered(planet, planet_position[1]);
 
         DrawTexturePro(rocketTex[rocket.dir],
                        (Rectangle){0, 0, rocketTex[rocket.dir].width, rocketTex[rocket.dir].height},
@@ -1594,28 +1385,67 @@ void start_gameplay()
             DrawWall(wall_level2[i]);
         }
 
-        updateRocket(&rocket, wall_level2, wallCount2);
+        if (!AllKeysCollected(keys_level2))
+        {
+            for (int i = 0; i < 4; i++)
+                DrawWallThick(redWalls_level2[i], RED, PLANET_WALL_THICK);
+        }
 
-        if (is_at_same_place(planet_position[1], rocket.pos))
+        DrawKeys(keys_level2, blackholeAnimTime);
+
+        DrawBlackHole(blackholes_level2[0], blackholeAnimTime);
+        DrawBlackHole(blackholes_level2[1], blackholeAnimTime);
+
+        UpdateAndDrawFlames(flameEmitters2, flameEmitterCount2, GetFrameTime());
+
+        updateRocket(&rocket, wall_level2, wallCount2, redWalls_level2, !AllKeysCollected(keys_level2));
+        UpdateKeyPickups(keys_level2, rocket.pos);
+
+        {
+            Vector2 teleportDest;
+            if (CheckBlackHoleTeleport(rocket.pos, blackholes_level2, &teleportDest))
+            {
+                rocket.pos = teleportDest;
+                teleportCooldown = BLACKHOLE_COOLDOWN;
+                PlaySound(clicksound);
+            }
+        }
+
+        DrawHUD(2, KEY_TYPE_COUNT - CountKeysCollected(keys_level2));
+
+        if (AllKeysCollected(keys_level2) && is_at_same_place(planet_position[1], rocket.pos))
         {
             PlaySound(level_up_sound);
+            StopLevelTimer(1);
             level = TR_WIN_2;
         }
         break;
 
     case TR_WIN_2:
         mousepos = GetMousePosition();
-        DrawRectangleRounded(message_box2, 1.0f, 8, (Color){10, 15, 40, 255});
+        {
+            Color nextBtnColor = GetButtonColor(message_box2, mousepos, Button_color);
+            DrawRectangleRounded(message_box2, 1.0f, 8, nextBtnColor);
+        }
         DrawRectangleRoundedLinesEx(message_box2, 1.0f, 8, 2, BLACK);
 
         DrawTextEx(font_play, transition2_msg1, message3_pos, font_size, spacing, BLUE);
         DrawTextEx(font_play, transition2_msg2, message4_pos, font_size, spacing, BLUE);
+
+        {
+            char resultText[64];
+            snprintf(resultText, sizeof(resultText), "Your Time: %s   Best: %s", FormatTime(levelTimes[1]), FormatTime(bestLevelTimes[1]));
+            Vector2 resultSize = MeasureTextEx(font_play, resultText, 22, spacing);
+            DrawTextEx(font_play, resultText, (Vector2){screen_width / 2 - resultSize.x / 2, message_box2.y + message_box2.height + 15}, 22, spacing, GOLD);
+        }
 
         if (CheckCollisionPointRec(mousepos, message_box2) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
         {
             PlaySound(clicksound);
             rocket.pos = rocket_position[2];
             rocket.dir = RIGHT;
+            currentLevelNumber = 3;
+            StartLevelTimer();
             level = LEVEL_3;
         }
 
@@ -1623,10 +1453,13 @@ void start_gameplay()
 
     case LEVEL_3:
 
-        DrawTexturePro(planet,
-                       (Rectangle){0, 0, planet.width, planet.height},
-                       (Rectangle){planet_position[2].x * CELL, planet_position[2].y * CELL, moonSize, moonSize},
-                       (Vector2){0, 0}, 0.0f, WHITE);
+        if (timerRunning)
+            levelElapsedTime += GetFrameTime();
+        if (teleportCooldown > 0.0f)
+            teleportCooldown -= GetFrameTime();
+        blackholeAnimTime += GetFrameTime();
+
+        DrawPlanetCentered(planet, planet_position[2]);
 
         DrawTexturePro(rocketTex[rocket.dir],
                        (Rectangle){0, 0, rocketTex[rocket.dir].width, rocketTex[rocket.dir].height},
@@ -1638,28 +1471,67 @@ void start_gameplay()
             DrawWall(wall_level3[i]);
         }
 
-        updateRocket(&rocket, wall_level3, wallCount3);
+        if (!AllKeysCollected(keys_level3))
+        {
+            for (int i = 0; i < 4; i++)
+                DrawWallThick(redWalls_level3[i], RED, PLANET_WALL_THICK);
+        }
 
-        if (is_at_same_place(planet_position[2], rocket.pos))
+        DrawKeys(keys_level3, blackholeAnimTime);
+
+        DrawBlackHole(blackholes_level3[0], blackholeAnimTime);
+        DrawBlackHole(blackholes_level3[1], blackholeAnimTime);
+
+        UpdateAndDrawFlames(flameEmitters3, flameEmitterCount3, GetFrameTime());
+
+        updateRocket(&rocket, wall_level3, wallCount3, redWalls_level3, !AllKeysCollected(keys_level3));
+        UpdateKeyPickups(keys_level3, rocket.pos);
+
+        {
+            Vector2 teleportDest;
+            if (CheckBlackHoleTeleport(rocket.pos, blackholes_level3, &teleportDest))
+            {
+                rocket.pos = teleportDest;
+                teleportCooldown = BLACKHOLE_COOLDOWN;
+                PlaySound(clicksound);
+            }
+        }
+
+        DrawHUD(3, KEY_TYPE_COUNT - CountKeysCollected(keys_level3));
+
+        if (AllKeysCollected(keys_level3) && is_at_same_place(planet_position[2], rocket.pos))
         {
             PlaySound(level_up_sound);
+            StopLevelTimer(2);
             level = TR_WIN_3;
         }
         break;
 
     case TR_WIN_3:
         mousepos = GetMousePosition();
-        DrawRectangleRounded(message_box3, 1.0f, 8, (Color){10, 15, 40, 255});
+        {
+            Color nextBtnColor = GetButtonColor(message_box3, mousepos, Button_color);
+            DrawRectangleRounded(message_box3, 1.0f, 8, nextBtnColor);
+        }
         DrawRectangleRoundedLinesEx(message_box3, 1.0f, 8, 2, BLACK);
 
         DrawTextEx(font_play, transition3_msg1, message5_pos, font_size, spacing, BLUE);
         DrawTextEx(font_play, transition3_msg2, message6_pos, font_size, spacing, BLUE);
+
+        {
+            char resultText[64];
+            snprintf(resultText, sizeof(resultText), "Your Time: %s   Best: %s", FormatTime(levelTimes[2]), FormatTime(bestLevelTimes[2]));
+            Vector2 resultSize = MeasureTextEx(font_play, resultText, 22, spacing);
+            DrawTextEx(font_play, resultText, (Vector2){screen_width / 2 - resultSize.x / 2, message_box3.y + message_box3.height + 15}, 22, spacing, GOLD);
+        }
 
         if (CheckCollisionPointRec(mousepos, message_box3) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
         {
             PlaySound(clicksound);
             rocket.pos = rocket_position[3];
             rocket.dir = LEFT;
+            currentLevelNumber = 4;
+            StartLevelTimer();
             level = LEVEL4;
         }
 
@@ -1667,10 +1539,13 @@ void start_gameplay()
 
     case LEVEL4:
 
-        DrawTexturePro(planet,
-                       (Rectangle){0, 0, planet.width, planet.height},
-                       (Rectangle){planet_position[3].x * CELL, planet_position[3].y * CELL, moonSize, moonSize},
-                       (Vector2){0, 0}, 0.0f, WHITE);
+        if (timerRunning)
+            levelElapsedTime += GetFrameTime();
+        if (teleportCooldown > 0.0f)
+            teleportCooldown -= GetFrameTime();
+        blackholeAnimTime += GetFrameTime();
+
+        DrawPlanetCentered(planet, planet_position[3]);
 
         DrawTexturePro(rocketTex[rocket.dir],
                        (Rectangle){0, 0, rocketTex[rocket.dir].width, rocketTex[rocket.dir].height},
@@ -1682,22 +1557,59 @@ void start_gameplay()
             DrawWall(wall_level4[i]);
         }
 
-        updateRocket(&rocket, wall_level4, wallCount4);
+        if (!AllKeysCollected(keys_level4))
+        {
+            for (int i = 0; i < 4; i++)
+                DrawWallThick(redWalls_level4[i], RED, PLANET_WALL_THICK);
+        }
 
-        if (is_at_same_place(planet_position[3], rocket.pos))
+        DrawKeys(keys_level4, blackholeAnimTime);
+
+        DrawBlackHole(blackholes_level4[0], blackholeAnimTime);
+        DrawBlackHole(blackholes_level4[1], blackholeAnimTime);
+
+        UpdateAndDrawFlames(flameEmitters4, flameEmitterCount4, GetFrameTime());
+
+        updateRocket(&rocket, wall_level4, wallCount4, redWalls_level4, !AllKeysCollected(keys_level4));
+        UpdateKeyPickups(keys_level4, rocket.pos);
+
+        {
+            Vector2 teleportDest;
+            if (CheckBlackHoleTeleport(rocket.pos, blackholes_level4, &teleportDest))
+            {
+                rocket.pos = teleportDest;
+                teleportCooldown = BLACKHOLE_COOLDOWN;
+                PlaySound(clicksound);
+            }
+        }
+
+        DrawHUD(4, KEY_TYPE_COUNT - CountKeysCollected(keys_level4));
+
+        if (AllKeysCollected(keys_level4) && is_at_same_place(planet_position[3], rocket.pos))
         {
             PlaySound(level_up_sound);
+            StopLevelTimer(3);
             level = TR_WIN_4;
         }
         break;
 
     case TR_WIN_4:
         mousepos = GetMousePosition();
-        DrawRectangleRounded(message_box3, 1.0f, 8, (Color){10, 25, 40, 255});
+        {
+            Color nextBtnColor = GetButtonColor(message_box3, mousepos, Button_color);
+            DrawRectangleRounded(message_box3, 1.0f, 8, nextBtnColor);
+        }
         DrawRectangleRoundedLinesEx(message_box3, 1.0f, 8, 2, BLACK);
 
         DrawTextEx(font_play, transition4_msg1, message5_pos, font_size, spacing, BLUE);
         DrawTextEx(font_play, transition4_msg2, message6_pos, font_size, spacing, BLUE);
+
+        {
+            char resultText[64];
+            snprintf(resultText, sizeof(resultText), "Your Time: %s   Best: %s", FormatTime(levelTimes[3]), FormatTime(bestLevelTimes[3]));
+            Vector2 resultSize = MeasureTextEx(font_play, resultText, 22, spacing);
+            DrawTextEx(font_play, resultText, (Vector2){screen_width / 2 - resultSize.x / 2, message_box3.y + message_box3.height + 15}, 22, spacing, GOLD);
+        }
 
         if (CheckCollisionPointRec(mousepos, message_box3) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
         {
@@ -1707,20 +1619,80 @@ void start_gameplay()
         break;
 
     case TOTAL_WINDOW:
-        break;
 
-        break;
+        mousepos = GetMousePosition();
 
-    default:
+        snprintf(score_title, sizeof(score_title), "Score of %s", playerName);
+
+        DrawTextEx(font_play, score_title, score_title_pos, (float)font_play.baseSize + 20, 2, GOLD);
+
+        for (int i = 0; i < LEVEL_COUNT; i++)
+        {
+            char levelLabel[16];
+            snprintf(levelLabel, sizeof(levelLabel), "Level %d", i + 1);
+            DrawTextEx(font_play, levelLabel, level_label_pos[i], font_size, spacing, BLUE);
+            DrawTextEx(font_play, FormatTime(levelTimes[i]), level_time_pos[i], font_size, spacing, (Color){0, 255, 180, 255});
+        }
+
+        {
+            Color exitBtnColor = GetButtonColor(exit_button_posRec, mousepos, Button_color);
+            Color playAgainBtnColor = GetButtonColor(playagain_button_posRec, mousepos, Button_color);
+
+            DrawRectangleRounded(exit_button_posRec, 1.0f, 8, exitBtnColor);
+            DrawRectangleRoundedLinesEx(exit_button_posRec, 1.0f, 8, 2, BLACK);
+            DrawTextEx(font_play, exit_message, exit_button_pos, (float)font_play.baseSize + 20, 2, BLUE);
+
+            DrawRectangleRounded(playagain_button_posRec, 1.0f, 8, playAgainBtnColor);
+            DrawRectangleRoundedLinesEx(playagain_button_posRec, 1.0f, 8, 2, BLACK);
+            DrawTextEx(font_play, play_again_message, playagain_button_pos, (float)font_play.baseSize + 20, 2, BLUE);
+        }
+
+        if (CheckCollisionPointRec(mousepos, exit_button_posRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+        {
+            PlaySound(clicksound);
+            exitGameRequested = true;
+        }
+
+        if (CheckCollisionPointRec(mousepos, playagain_button_posRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+        {
+            PlaySound(clicksound);
+            level = ZERO_WINDOW;
+        }
+
         break;
     }
 }
 int main()
 {
-    InitWindow(screen_width, screen_height, "Maze solver");
+    InitWindow(screen_width, screen_height, "COSMIC MAZE");
     InitAudioDevice();
     SetMasterVolume(0.5f);
     SetTargetFPS(60);
+
+    LoadLeaderboard();
+
+    InitFireParticles();
+    BuildFlameEmitters(wall_level1, wallCount1, flameEmitters1, &flameEmitterCount1);
+    BuildFlameEmitters(wall_level2, wallCount2, flameEmitters2, &flameEmitterCount2);
+    BuildFlameEmitters(wall_level3, wallCount3, flameEmitters3, &flameEmitterCount3);
+    BuildFlameEmitters(wall_level4, wallCount4, flameEmitters4, &flameEmitterCount4);
+
+    // Build each level's red planet-guard walls and scatter its 4 keys.
+    // GRID_MAX_X/Y stay a little inside the outer border wall.
+    {
+        const int GRID_MAX_X = (screen_width / CELL) - 2;
+        const int GRID_MAX_Y = (screen_height / CELL) - 2;
+
+        BuildPlanetRedWalls(planet_position[0], redWalls_level1);
+        BuildPlanetRedWalls(planet_position[1], redWalls_level2);
+        BuildPlanetRedWalls(planet_position[2], redWalls_level3);
+        BuildPlanetRedWalls(planet_position[3], redWalls_level4);
+
+        PlaceKeys(keys_level1, wall_level1, wallCount1, rocket_position[0], planet_position[0], blackholes_level1, GRID_MAX_X, GRID_MAX_Y);
+        PlaceKeys(keys_level2, wall_level2, wallCount2, rocket_position[1], planet_position[1], blackholes_level2, GRID_MAX_X, GRID_MAX_Y);
+        PlaceKeys(keys_level3, wall_level3, wallCount3, rocket_position[2], planet_position[2], blackholes_level3, GRID_MAX_X, GRID_MAX_Y);
+        PlaceKeys(keys_level4, wall_level4, wallCount4, rocket_position[3], planet_position[3], blackholes_level4, GRID_MAX_X, GRID_MAX_Y);
+    }
 
     for (int i = 0; i < CNT; i++)
     {
@@ -1729,9 +1701,12 @@ int main()
 
     load_data_0();
     load_data_1();
+    load_credentials();
+    load_data_name_window();
     load_data_transition_window();
     load_data_transition_window2();
     load_data_transition_window3();
+    load_data_total_window();
 
     backgrnd_music = LoadMusicStream("D:/Maze-explorer/Audio/background.mp3");
     clicksound = LoadSound("D:/Maze-explorer/Audio/click.wav");
@@ -1740,7 +1715,7 @@ int main()
 
     PlayMusicStream(backgrnd_music);
 
-    while (!WindowShouldClose())
+    while (!WindowShouldClose() && !exitGameRequested)
     {
 
         UpdateMusicStream(backgrnd_music);
