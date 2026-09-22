@@ -1568,8 +1568,8 @@ case LEVEL_1:
         blackholeAnimTime += GetFrameTime();
     }
 
-    DrawTexturePro(space_background,
-                   (Rectangle){0, 0, space_background.width, space_background.height},
+    DrawTexturePro(space_background2,
+                   (Rectangle){0, 0, space_background2.width, space_background2.height},
                    (Rectangle){0, 0, screen_width, screen_height},
                    (Vector2){0, 0}, 0.0f, WHITE);
 
@@ -1643,8 +1643,8 @@ case LEVEL_1:
     case TR_WIN_2:
     mousepos = GetMousePosition();
 
-    DrawTexturePro(space_background,
-                   (Rectangle){0, 0, space_background.width, space_background.height},
+    DrawTexturePro(space_background2,
+                   (Rectangle){0, 0, space_background2.width, space_background2.height},
                    (Rectangle){0, 0, screen_width, screen_height},
                    (Vector2){0, 0}, 0.0f, WHITE);
 
@@ -1701,8 +1701,8 @@ case LEVEL_1:
         blackholeAnimTime += GetFrameTime();
     }
 
-    DrawTexturePro(space_background,
-                   (Rectangle){0, 0, space_background.width, space_background.height},
+    DrawTexturePro(space_background3,
+                   (Rectangle){0, 0, space_background3.width, space_background3.height},
                    (Rectangle){0, 0, screen_width, screen_height},
                    (Vector2){0, 0}, 0.0f, WHITE);
 
@@ -1781,8 +1781,8 @@ case LEVEL_1:
     case TR_WIN_3:
     mousepos = GetMousePosition();
 
-    DrawTexturePro(space_background,
-                   (Rectangle){0, 0, space_background.width, space_background.height},
+    DrawTexturePro(space_background3,
+                   (Rectangle){0, 0, space_background3.width, space_background3.height},
                    (Rectangle){0, 0, screen_width, screen_height},
                    (Vector2){0, 0}, 0.0f, WHITE);
 
@@ -1838,8 +1838,8 @@ case LEVEL_1:
         blackholeAnimTime += GetFrameTime();
     }
 
-    DrawTexturePro(space_background,
-                   (Rectangle){0, 0, space_background.width, space_background.height},
+    DrawTexturePro(space_background4,
+                   (Rectangle){0, 0, space_background4.width, space_background4.height},
                    (Rectangle){0, 0, screen_width, screen_height},
                    (Vector2){0, 0}, 0.0f, WHITE);
 
@@ -1918,8 +1918,8 @@ case LEVEL_1:
     case TR_WIN_4:
     mousepos = GetMousePosition();
 
-    DrawTexturePro(space_background,
-                   (Rectangle){0, 0, space_background.width, space_background.height},
+    DrawTexturePro(space_background4,
+                   (Rectangle){0, 0, space_background4.width, space_background4.height},
                    (Rectangle){0, 0, screen_width, screen_height},
                    (Vector2){0, 0}, 0.0f, WHITE);
 
