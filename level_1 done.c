@@ -1506,6 +1506,45 @@ case LEVEL_1:
     {
         DrawPauseMenu();
     }
+    break;
+    
+    case TR_WIN_1:
+    mousepos = GetMousePosition();
+
+    DrawTexturePro(space_background,
+                   (Rectangle){0, 0, space_background.width, space_background.height},
+                   (Rectangle){0, 0, screen_width, screen_height},
+                   (Vector2){0, 0}, 0.0f, WHITE);
+
+    {
+        Color nextBtnColor = GetButtonColor(message_box, mousepos, Button_color);
+        DrawRectangleRounded(message_box, 1.0f, 8, nextBtnColor);
+    }
+    DrawRectangleRoundedLinesEx(message_box, 1.0f, 8, 2, BLACK);
+
+    DrawTextEx(font_play, transition_msg1, message1_pos, font_size, spacing, BLUE);
+    DrawTextEx(font_play, transition_msg2, message2_pos, font_size, spacing, BLUE);
+
+    {
+        char resultText[64];
+        snprintf(resultText, sizeof(resultText), "Your Time: %s   Best: %s",
+                 FormatTime(levelTimes[0]), FormatTime(bestLevelTimes[0]));
+        Vector2 resultSize = MeasureTextEx(font_play, resultText, 22, spacing);
+        DrawTextEx(font_play, resultText,
+                   (Vector2){screen_width / 2 - resultSize.x / 2, message_box.y + message_box.height + 15},
+                   22, spacing, GOLD);
+    }
+
+    if (CheckCollisionPointRec(mousepos, message_box) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+    {
+        PlaySound(clicksound);
+        rocket.pos = rocket_position[1];
+        rocket.dir = DOWN;
+        currentLevelNumber = 2;
+        StartLevelTimer();
+        isPaused = false;
+        level = LEVEL_2;
+    }
 
     break;
 
@@ -1600,8 +1639,47 @@ case LEVEL_1:
     {
         DrawPauseMenu();
     }
-
     break;
+    case TR_WIN_2:
+    mousepos = GetMousePosition();
+
+    DrawTexturePro(space_background,
+                   (Rectangle){0, 0, space_background.width, space_background.height},
+                   (Rectangle){0, 0, screen_width, screen_height},
+                   (Vector2){0, 0}, 0.0f, WHITE);
+
+    {
+        Color nextBtnColor = GetButtonColor(message_box2, mousepos, Button_color);
+        DrawRectangleRounded(message_box2, 1.0f, 8, nextBtnColor);
+    }
+    DrawRectangleRoundedLinesEx(message_box2, 1.0f, 8, 2, BLACK);
+
+    DrawTextEx(font_play, transition2_msg1, message3_pos, font_size, spacing, BLUE);
+    DrawTextEx(font_play, transition2_msg2, message4_pos, font_size, spacing, BLUE);
+
+    {
+        char resultText[64];
+        snprintf(resultText, sizeof(resultText), "Your Time: %s   Best: %s",
+                 FormatTime(levelTimes[1]), FormatTime(bestLevelTimes[1]));
+        Vector2 resultSize = MeasureTextEx(font_play, resultText, 22, spacing);
+        DrawTextEx(font_play, resultText,
+                   (Vector2){screen_width / 2 - resultSize.x / 2, message_box2.y + message_box2.height + 15},
+                   22, spacing, GOLD);
+    }
+
+    if (CheckCollisionPointRec(mousepos, message_box2) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+    {
+        PlaySound(clicksound);
+        rocket.pos = rocket_position[2];
+        rocket.dir = RIGHT;
+        currentLevelNumber = 3;
+        StartLevelTimer();
+        isPaused = false;
+        level = LEVEL_3;
+    }
+    break;
+
+
 
    case LEVEL_3:
 
@@ -1698,6 +1776,44 @@ case LEVEL_1:
     if (isPaused)
     {
         DrawPauseMenu();
+    }
+    break;
+    case TR_WIN_3:
+    mousepos = GetMousePosition();
+
+    DrawTexturePro(space_background,
+                   (Rectangle){0, 0, space_background.width, space_background.height},
+                   (Rectangle){0, 0, screen_width, screen_height},
+                   (Vector2){0, 0}, 0.0f, WHITE);
+
+    {
+        Color nextBtnColor = GetButtonColor(message_box3, mousepos, Button_color);
+        DrawRectangleRounded(message_box3, 1.0f, 8, nextBtnColor);
+    }
+    DrawRectangleRoundedLinesEx(message_box3, 1.0f, 8, 2, BLACK);
+
+    DrawTextEx(font_play, transition3_msg1, message5_pos, font_size, spacing, BLUE);
+    DrawTextEx(font_play, transition3_msg2, message6_pos, font_size, spacing, BLUE);
+
+    {
+        char resultText[64];
+        snprintf(resultText, sizeof(resultText), "Your Time: %s   Best: %s",
+                 FormatTime(levelTimes[2]), FormatTime(bestLevelTimes[2]));
+        Vector2 resultSize = MeasureTextEx(font_play, resultText, 22, spacing);
+        DrawTextEx(font_play, resultText,
+                   (Vector2){screen_width / 2 - resultSize.x / 2, message_box3.y + message_box3.height + 15},
+                   22, spacing, GOLD);
+    }
+
+    if (CheckCollisionPointRec(mousepos, message_box3) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+    {
+        PlaySound(clicksound);
+        rocket.pos = rocket_position[3];
+        rocket.dir = LEFT;
+        currentLevelNumber = 4;
+        StartLevelTimer();
+        isPaused = false;
+        level = LEVEL4;
     }
 
     break;
@@ -1797,6 +1913,39 @@ case LEVEL_1:
     if (isPaused)
     {
         DrawPauseMenu();
+    }
+    break;
+    case TR_WIN_4:
+    mousepos = GetMousePosition();
+
+    DrawTexturePro(space_background,
+                   (Rectangle){0, 0, space_background.width, space_background.height},
+                   (Rectangle){0, 0, screen_width, screen_height},
+                   (Vector2){0, 0}, 0.0f, WHITE);
+
+    {
+        Color nextBtnColor = GetButtonColor(message_box3, mousepos, Button_color);
+        DrawRectangleRounded(message_box3, 1.0f, 8, nextBtnColor);
+    }
+    DrawRectangleRoundedLinesEx(message_box3, 1.0f, 8, 2, BLACK);
+
+    DrawTextEx(font_play, transition4_msg1, message5_pos, font_size, spacing, BLUE);
+    DrawTextEx(font_play, transition4_msg2, message6_pos, font_size, spacing, BLUE);
+
+    {
+        char resultText[64];
+        snprintf(resultText, sizeof(resultText), "Your Time: %s   Best: %s",
+                 FormatTime(levelTimes[3]), FormatTime(bestLevelTimes[3]));
+        Vector2 resultSize = MeasureTextEx(font_play, resultText, 22, spacing);
+        DrawTextEx(font_play, resultText,
+                   (Vector2){screen_width / 2 - resultSize.x / 2, message_box3.y + message_box3.height + 15},
+                   22, spacing, GOLD);
+    }
+
+    if (CheckCollisionPointRec(mousepos, message_box3) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+    {
+        PlaySound(clicksound);
+        level = TOTAL_WINDOW;
     }
 
     break;
