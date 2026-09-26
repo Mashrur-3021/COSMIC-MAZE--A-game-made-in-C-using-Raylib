@@ -15,8 +15,8 @@
 #define meteorSize 34
 #define BLACKHOLE_RADIUS_CELLS 0.45f // how close (in grid cells) counts as "entered"
 #define BLACKHOLE_COOLDOWN 0.6f
-#define PARTICLES_PER_EMITTER 4
-#define MAX_LEVEL_EMITTERS 000
+#define PARTICLES_PER_EMITTER 1
+
 #define FLAME_SPACING 90.0f     // px between emitters along a wall
 #define FLAME_RISE_HEIGHT 22.0f // how tall each flame lick grows
 #define PLANET_WALL_THICK 6
@@ -26,6 +26,7 @@
 #define screen_width 1500
 
 Color Button_color = (Color){10, 15, 40, 255};
+int MAX_LEVEL_EMITTERS = 700;
 
 typedef enum
 {
@@ -42,6 +43,16 @@ typedef struct
     Direction dir;
     Vector2 pos;
 } Player;
+
+typedef struct
+{
+    float speed;
+    Vector2 pos;
+    int currentIndex;
+    int direction;
+    Vector2 *path;
+    int pathSize;
+} spaceShip;
 
 typedef enum
 {
@@ -109,11 +120,17 @@ Texture2D space_background4;
 Texture2D space_background5;
 Texture2D planet;
 Texture2D meteor;
+Texture2D alien_spaceship;
 
 // vector arrays
-const Vector2 rocket_position[] = {{2, 9}, {2, 2}, {3, 4}, {2,11}};
+const Vector2 rocket_position[] = {{2, 9}, {2, 2}, {3, 4}, {2, 11}};
 Vector2 planet_position[] = {{23, 8}, {22, 2}, {15, 13}, {22, 2}};
-Vector2 meteors_level3[] = {{18, 4}, {8, 8}};
+
+Vector2 meteors_level2[] = {{6, 12}, {24, 6}, {24, 10}, {22, 14}, {17, 9}, {21, 4}, {4, 14}};
+int meteors_level2_size = sizeof(meteors_level2) / sizeof(Vector2);
+Vector2 meteors_level3[] = {
+    {18, 4}, {8, 8}, {1, 13}, {24, 9}, {16, 8}, {11, 12}, {7, 10}, {16, 6}, {17, 13}, {15, 11}, {20, 2}, {13, 2}, {21, 12}, {5, 12}, {19, 10}, {20, 24}, {23, 33}, {12, 10}, {11, 6}};
+int meteors_level3_size = sizeof(meteors_level3) / sizeof(Vector2);
 Vector2 meteors_level4[] = {{12, 8}, {5, 5}};
 
 // ===================== BLACK HOLES =====================
@@ -154,6 +171,41 @@ Wall redWalls_level4[4];
 // =================== END COLLECTIBLE KEYS + RED GUARD WALLS ===================
 
 Player rocket = {rocketSpeed, DOWN, rocket_position[0]};
+
+spaceShip alienShip1 = {
+    .speed = 2.0f,
+    .pos = {11, 14},
+    .currentIndex = 0,
+    .direction = 1,
+    .path = alien_path1,
+    .pathSize = 19};
+
+spaceShip alienShip2 = {
+    .speed = 2.0f,
+    .pos = {12, 1},
+    .currentIndex = 0,
+    .direction = 1,
+    .path = alien_path2,
+    .pathSize = 11};
+
+void ResetSpaceShips(void)
+{
+    alienShip1 = (spaceShip){
+        .speed = 2.0f,
+        .pos = {alien_path1[0].x, alien_path1[0].y},
+        .currentIndex = 0,
+        .direction = 1,
+        .path = alien_path1,
+        .pathSize = alien_path1_size};
+
+    alienShip2 = (spaceShip){
+        .speed = 2.0f,
+        .pos = {alien_path2[0].x, alien_path2[0].y},
+        .currentIndex = 0,
+        .direction = 1,
+        .path = alien_path2,
+        .pathSize = alien_path2_size};
+}
 
 char playerName[MAX_NAME_LEN + 1] = "\0";
 int nameLetterCount = 0;
@@ -214,10 +266,10 @@ Sound level_up_sound;
 float font_size = 30;
 float spacing = 2;
 
-FlameEmitter flameEmitters1[MAX_LEVEL_EMITTERS];
-FlameEmitter flameEmitters2[MAX_LEVEL_EMITTERS];
-FlameEmitter flameEmitters3[MAX_LEVEL_EMITTERS];
-FlameEmitter flameEmitters4[MAX_LEVEL_EMITTERS];
+FlameEmitter flameEmitters1[700];
+FlameEmitter flameEmitters2[700];
+FlameEmitter flameEmitters3[700];
+FlameEmitter flameEmitters4[700];
 int flameEmitterCount1 = 0;
 int flameEmitterCount2 = 0;
 int flameEmitterCount3 = 0;
@@ -239,8 +291,6 @@ Vector2 playagain_button_pos;
 Rectangle playagain_button_posRec;
 
 bool exitGameRequested = false;
-bool isPaused = false;
-
 
 static Color GetButtonColor(Rectangle rect, Vector2 mouse, Color baseColor)
 {
@@ -432,9 +482,9 @@ Color LerpColor(Color a, Color b, float t)
 
 void UpdateAndDrawFlames(FlameEmitter *emitters, int emitterCount, float dt)
 {
-    Color baseColor = (Color){255, 240, 150, 255}; // hot near the wall
-    Color midColor = (Color){255, 120, 0, 255};    // orange body
-    Color tipColor = (Color){180, 20, 0, 0};       // fades to nothing
+    Color baseColor = (Color){255, 255, 255, 255}; // hot near the wall
+    Color midColor = (Color){255, 255, 255, 255};  // orange body
+    Color tipColor = (Color){255, 255, 255, 0};    // fades to nothing
 
     for (int i = 0; i < emitterCount; i++)
     {
@@ -653,6 +703,15 @@ void DrawMeteorCentered(Texture2D tex, Vector2 gridPos)
                    (Vector2){0, 0}, 0.0f, WHITE);
 }
 
+void DrawSpaceShipCentered(Texture2D tex, Vector2 gridPos)
+{
+    float offset = (CELL - meteorSize) / 2.0f;
+    DrawTexturePro(tex,
+                   (Rectangle){0, 0, tex.width, tex.height},
+                   (Rectangle){gridPos.x * CELL + offset, gridPos.y * CELL + offset, meteorSize, meteorSize},
+                   (Vector2){0, 0}, 0.0f, WHITE);
+}
+
 bool is_at_same_place(Vector2 planet_pos, Vector2 rocket_pos)
 {
     int rx = (int)(rocket_pos.x + 0.0f);
@@ -665,23 +724,48 @@ bool is_at_same_place(Vector2 planet_pos, Vector2 rocket_pos)
         return false;
 }
 
-// ===================== KEY SYSTEM HELPERS =====================
-
-// Returns the color used to draw a given key type.
-Color GetKeyColor(KeyType t)
+// Check if rocket collides with alien spaceship (using grid-based collision)
+bool CheckAlienShipCollision(Vector2 rocket_pos, Vector2 ship_pos)
 {
-    switch (t)
+    float collision_distance = 0.8f; // collision radius in grid cells
+    return Vector2Distance(rocket_pos, ship_pos) < collision_distance;
+}
+
+void updateSpaceShip(spaceShip *ship)
+{
+    if (ship == NULL || ship->path == NULL || ship->pathSize <= 1)
+        return;
+
+    float dt = GetFrameTime();
+    int nextIndex = ship->currentIndex + ship->direction;
+
+    if (nextIndex >= ship->pathSize || nextIndex < 0)
     {
-    case KEY_RED:
-        return RED;
-    case KEY_GREEN:
-        return GREEN;
-    case KEY_YELLOW:
-        return YELLOW;
-    case KEY_BLUE:
-        return BLUE;
-    default:
-        return WHITE;
+        ship->direction *= -1;
+        nextIndex = ship->currentIndex + ship->direction;
+    }
+
+    Vector2 target = ship->path[nextIndex];
+    Vector2 delta = {target.x - ship->pos.x, target.y - ship->pos.y};
+    float distance = sqrtf(delta.x * delta.x + delta.y * delta.y);
+
+    if (distance <= 0.01f)
+    {
+        ship->pos = target;
+        ship->currentIndex = nextIndex;
+        return;
+    }
+
+    float step = ship->speed * dt;
+    if (step >= distance)
+    {
+        ship->pos = target;
+        ship->currentIndex = nextIndex;
+    }
+    else
+    {
+        ship->pos.x += (delta.x / distance) * step;
+        ship->pos.y += (delta.y / distance) * step;
     }
 }
 
@@ -809,6 +893,24 @@ void UpdateKeyPickups(Key keys[KEY_TYPE_COUNT], Vector2 rocketPos)
     }
 }
 
+// Returns the color used to draw a given key type.
+Color GetKeyColor(KeyType t)
+{
+    switch (t)
+    {
+    case KEY_RED:
+        return RED;
+    case KEY_GREEN:
+        return GREEN;
+    case KEY_YELLOW:
+        return YELLOW;
+    case KEY_BLUE:
+        return BLUE;
+    default:
+        return WHITE;
+    }
+}
+
 // Draws every key that hasn't been collected yet as a small realistic key
 // silhouette: a ring-shaped bow (head), a shaft, and two teeth at the end -
 // instead of a plain dot with a bump.
@@ -900,7 +1002,7 @@ void updateRocket(Player *rocket, Wall wall_level[], int wall_count, Wall redWal
             case UP:
                 Vector2 next_pos = rocket->pos;
                 next_pos.y = rocket->pos.y - rocket->speed * dt;
-              bool blockedUp = hitWall(next_pos, wall_level, wall_count) || (redWallsActive && hitWall(next_pos, redWalls, 4)) || hitMeteor(next_pos, meteors, meteorCount);
+                bool blockedUp = hitWall(next_pos, wall_level, wall_count) || (redWallsActive && hitWall(next_pos, redWalls, 4)) || hitMeteor(next_pos, meteors, meteorCount);
                 if (!blockedUp)
                 {
                     rocket->pos = next_pos;
@@ -1071,6 +1173,7 @@ void load_data_1()
     space_background5 = LoadTexture("D:/Maze-explorer/Background/6.png");
     planet = LoadTexture("D:/Maze-explorer/Planets/planet.png");
     meteor = LoadTexture("D:/Maze-explorer/Meteor/1.png");
+    alien_spaceship = LoadTexture("D:/Maze-explorer/Alien-spaceship/1.png");
 }
 
 void load_data_transition_window()
@@ -1220,63 +1323,6 @@ void load_data_total_window()
 
 static int level = 0;
 
-void DrawPauseMenu(void)
-{
-    DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(BLACK, 0.65f));
-
-    DrawText("GAME PAUSED",
-             GetScreenWidth() / 2 - MeasureText("GAME PAUSED", 40) / 2,
-             180,
-             40,
-             WHITE);
-
-    Rectangle resumeButton = {
-        GetScreenWidth() / 2 - 120,
-        300,
-        240,
-        60
-    };
-
-    Rectangle exitButton = {
-        GetScreenWidth() / 2 - 120,
-        390,
-        240,
-        60
-    };
-
-    DrawRectangleRec(resumeButton, DARKGRAY);
-    DrawRectangleRec(exitButton, DARKGRAY);
-
-    DrawText("RESUME",
-             resumeButton.x + resumeButton.width / 2 -
-             MeasureText("RESUME", 25) / 2,
-             resumeButton.y + 17,
-             25,
-             WHITE);
-
-    DrawText("EXIT GAME",
-             exitButton.x + exitButton.width / 2 -
-             MeasureText("EXIT GAME", 25) / 2,
-             exitButton.y + 17,
-             25,
-             WHITE);
-
-    Vector2 mouse = GetMousePosition();
-
-    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
-    {
-        if (CheckCollisionPointRec(mouse, resumeButton))
-        {
-            isPaused = false;
-        }
-
-        if (CheckCollisionPointRec(mouse, exitButton))
-        {
-            exitGameRequested = true;
-        }
-    }
-}
-
 void start_gameplay()
 {
 
@@ -1392,563 +1438,428 @@ void start_gameplay()
 
         break;
     }
-case LEVEL_1:
 
-    if (IsKeyPressed(KEY_SPACE))
-    {
-        isPaused = !isPaused;
-    }
+    case LEVEL_1:
 
-    if (!isPaused && timerRunning)
-    {
-        levelElapsedTime += GetFrameTime();
-    }
-
-    if (!isPaused)
-    {
+        if (timerRunning)
+            levelElapsedTime += GetFrameTime();
         if (teleportCooldown > 0.0f)
             teleportCooldown -= GetFrameTime();
-
         blackholeAnimTime += GetFrameTime();
-    }
 
-   
-    DrawTexturePro(space_background,
-                   (Rectangle){0, 0, space_background.width, space_background.height},
-                   (Rectangle){0, 0, screen_width, screen_height},
-                   (Vector2){0, 0}, 0.0f, WHITE);
+        DrawTexturePro(space_background,
+                       (Rectangle){0, 0, space_background.width, space_background.height},
+                       (Rectangle){0, 0, screen_width, screen_height},
+                       (Vector2){0, 0}, 0.0f, WHITE);
 
-    DrawPlanetCentered(planet, planet_position[0]);
+        DrawPlanetCentered(planet, planet_position[0]);
 
-   
-    DrawTexturePro(rocketTex[rocket.dir],
-                   (Rectangle){0, 0, rocketTex[rocket.dir].width, rocketTex[rocket.dir].height},
-                   (Rectangle){rocket.pos.x * CELL,
-                              rocket.pos.y * CELL,
-                              rocketSize,
-                              rocketSize},
-                   (Vector2){0, 0}, 0.0f, WHITE);
+        DrawTexturePro(rocketTex[rocket.dir],
+                       (Rectangle){0, 0, rocketTex[rocket.dir].width, rocketTex[rocket.dir].height},
+                       (Rectangle){rocket.pos.x * CELL, rocket.pos.y * CELL, rocketSize, rocketSize},
+                       (Vector2){0, 0}, 0.0f, WHITE);
 
-    
-    for (int i = 0; i < wallCount1; i++)
-    {
-        DrawWall(wall_level1[i]);
-    }
-
-    
-    if (!AllKeysCollected(keys_level1))
-    {
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < wallCount1; i++)
         {
-            DrawWallThick(redWalls_level1[i], RED, PLANET_WALL_THICK);
+            DrawWall(wall_level1[i]);
         }
-    }
 
-   
-    DrawKeys(keys_level1, blackholeAnimTime);
+        if (!AllKeysCollected(keys_level1))
+        {
+            for (int i = 0; i < 4; i++)
+                DrawWallThick(redWalls_level1[i], RED, PLANET_WALL_THICK);
+        }
 
-    
-    DrawBlackHole(blackholes_level1[0], blackholeAnimTime);
-    DrawBlackHole(blackholes_level1[1], blackholeAnimTime);
+        DrawKeys(keys_level1, blackholeAnimTime);
 
-   
-    UpdateAndDrawFlames(flameEmitters1,
-                        flameEmitterCount1,
-                        isPaused ? 0.0f : GetFrameTime());
+        DrawBlackHole(blackholes_level1[0], blackholeAnimTime);
+        DrawBlackHole(blackholes_level1[1], blackholeAnimTime);
 
-    
-    if (!isPaused)
-    {
-        
-        updateRocket(&rocket,
-                     wall_level1,
-                     wallCount1,
-                     redWalls_level1,
-                     !AllKeysCollected(keys_level1),
-                     NULL,
-                     0);
+        // UpdateAndDrawFlames(flameEmitters1, flameEmitterCount1, GetFrameTime());
 
-       
+        updateRocket(&rocket, wall_level1, wallCount1, redWalls_level1, !AllKeysCollected(keys_level1), NULL, 0);
         UpdateKeyPickups(keys_level1, rocket.pos);
 
-        Vector2 teleportDest;
-
-        if (CheckBlackHoleTeleport(rocket.pos,
-                                   blackholes_level1,
-                                   &teleportDest))
         {
-            rocket.pos = teleportDest;
-            teleportCooldown = BLACKHOLE_COOLDOWN;
-            PlaySound(clicksound);
+            Vector2 teleportDest;
+            if (CheckBlackHoleTeleport(rocket.pos, blackholes_level1, &teleportDest))
+            {
+                rocket.pos = teleportDest;
+                teleportCooldown = BLACKHOLE_COOLDOWN;
+                PlaySound(clicksound);
+            }
         }
 
-       
-        if (AllKeysCollected(keys_level1) &&
-            is_at_same_place(planet_position[0], rocket.pos))
+        DrawHUD(1, KEY_TYPE_COUNT - CountKeysCollected(keys_level1));
+
+        if (AllKeysCollected(keys_level1) && is_at_same_place(planet_position[0], rocket.pos))
         {
             PlaySound(level_up_sound);
-
             StopLevelTimer(0);
-
-            isPaused = false;
-
             level = TR_WIN_1;
         }
-    }
+        break;
 
-    
-    DrawHUD(1,
-            KEY_TYPE_COUNT -
-            CountKeysCollected(keys_level1));
-
-   
-    if (isPaused)
-    {
-        DrawPauseMenu();
-    }
-    break;
-    
     case TR_WIN_1:
-    mousepos = GetMousePosition();
+        mousepos = GetMousePosition();
 
-    DrawTexturePro(space_background,
-                   (Rectangle){0, 0, space_background.width, space_background.height},
-                   (Rectangle){0, 0, screen_width, screen_height},
-                   (Vector2){0, 0}, 0.0f, WHITE);
+        DrawTexturePro(space_background,
+                       (Rectangle){0, 0, space_background.width, space_background.height},
+                       (Rectangle){0, 0, screen_width, screen_height},
+                       (Vector2){0, 0}, 0.0f, WHITE);
 
-    {
-        Color nextBtnColor = GetButtonColor(message_box, mousepos, Button_color);
-        DrawRectangleRounded(message_box, 1.0f, 8, nextBtnColor);
-    }
-    DrawRectangleRoundedLinesEx(message_box, 1.0f, 8, 2, BLACK);
-
-    DrawTextEx(font_play, transition_msg1, message1_pos, font_size, spacing, BLUE);
-    DrawTextEx(font_play, transition_msg2, message2_pos, font_size, spacing, BLUE);
-
-    {
-        char resultText[64];
-        snprintf(resultText, sizeof(resultText), "Your Time: %s   Best: %s",
-                 FormatTime(levelTimes[0]), FormatTime(bestLevelTimes[0]));
-        Vector2 resultSize = MeasureTextEx(font_play, resultText, 22, spacing);
-        DrawTextEx(font_play, resultText,
-                   (Vector2){screen_width / 2 - resultSize.x / 2, message_box.y + message_box.height + 15},
-                   22, spacing, GOLD);
-    }
-
-    if (CheckCollisionPointRec(mousepos, message_box) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
-    {
-        PlaySound(clicksound);
-        rocket.pos = rocket_position[1];
-        rocket.dir = DOWN;
-        currentLevelNumber = 2;
-        StartLevelTimer();
-        isPaused = false;
-        level = LEVEL_2;
-    }
-
-    break;
-
-   case LEVEL_2:
-
-    if (IsKeyPressed(KEY_SPACE))
-    {
-        isPaused = !isPaused;
-    }
-
-    if (!isPaused && timerRunning)
-    {
-        levelElapsedTime += GetFrameTime();
-    }
-
-    if (!isPaused)
-    {
-        if (teleportCooldown > 0.0f)
-            teleportCooldown -= GetFrameTime();
-
-        blackholeAnimTime += GetFrameTime();
-    }
-
-    DrawTexturePro(space_background,
-                   (Rectangle){0, 0, space_background.width, space_background.height},
-                   (Rectangle){0, 0, screen_width, screen_height},
-                   (Vector2){0, 0}, 0.0f, WHITE);
-
-    DrawPlanetCentered(planet, planet_position[1]);
-
-    DrawTexturePro(rocketTex[rocket.dir],
-                   (Rectangle){0, 0, rocketTex[rocket.dir].width, rocketTex[rocket.dir].height},
-                   (Rectangle){rocket.pos.x * CELL, rocket.pos.y * CELL, rocketSize, rocketSize},
-                   (Vector2){0, 0}, 0.0f, WHITE);
-
-    for (int i = 0; i < wallCount2; i++)
-    {
-        DrawWall(wall_level2[i]);
-    }
-
-    if (!AllKeysCollected(keys_level2))
-    {
-        for (int i = 0; i < 4; i++)
-            DrawWallThick(redWalls_level2[i], RED, PLANET_WALL_THICK);
-    }
-
-    DrawKeys(keys_level2, blackholeAnimTime);
-
-    DrawBlackHole(blackholes_level2[0], blackholeAnimTime);
-    DrawBlackHole(blackholes_level2[1], blackholeAnimTime);
-
-    UpdateAndDrawFlames(flameEmitters2,
-                        flameEmitterCount2,
-                        isPaused ? 0.0f : GetFrameTime());
-
-    if (!isPaused)
-    {
-        updateRocket(&rocket,
-             wall_level2,
-             wallCount2,
-             redWalls_level2,
-             !AllKeysCollected(keys_level2),
-             NULL,
-             0);
-
-        UpdateKeyPickups(keys_level2, rocket.pos);
-
-        Vector2 teleportDest;
-
-        if (CheckBlackHoleTeleport(rocket.pos,
-                                   blackholes_level2,
-                                   &teleportDest))
         {
-            rocket.pos = teleportDest;
-            teleportCooldown = BLACKHOLE_COOLDOWN;
-            PlaySound(clicksound);
+            Color nextBtnColor = GetButtonColor(message_box, mousepos, Button_color);
+            DrawRectangleRounded(message_box, 1.0f, 8, nextBtnColor);
+        }
+        DrawRectangleRoundedLinesEx(message_box, 1.0f, 8, 2, BLACK);
+
+        DrawTextEx(font_play, transition_msg1, message1_pos, font_size, spacing, BLUE);
+        DrawTextEx(font_play, transition_msg2, message2_pos, font_size, spacing, BLUE);
+
+        {
+            char yourTimeStr[32];
+            char resultText[64];
+            snprintf(yourTimeStr, sizeof(yourTimeStr), "%s", FormatTime(levelTimes[0]));
+            snprintf(resultText, sizeof(resultText), "Your Time: %s   Best: %s", yourTimeStr, FormatTime(bestLevelTimes[0]));
+            Vector2 resultSize = MeasureTextEx(font_play, resultText, 22, spacing);
+            DrawTextEx(font_play, resultText, (Vector2){screen_width / 2 - resultSize.x / 2, message_box.y + message_box.height + 15}, 22, spacing, GOLD);
         }
 
-        if (AllKeysCollected(keys_level2) &&
-            is_at_same_place(planet_position[1], rocket.pos))
+        if (CheckCollisionPointRec(mousepos, message_box) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+        {
+            PlaySound(clicksound);
+            rocket.pos = rocket_position[1];
+            rocket.dir = DOWN;
+            currentLevelNumber = 2;
+            StartLevelTimer();
+            level = LEVEL_2;
+        }
+
+        break;
+
+    case LEVEL_2:
+
+        if (timerRunning)
+            levelElapsedTime += GetFrameTime();
+        if (teleportCooldown > 0.0f)
+            teleportCooldown -= GetFrameTime();
+        blackholeAnimTime += GetFrameTime();
+
+        DrawTexturePro(space_background2,
+                       (Rectangle){0, 0, space_background2.width, space_background2.height},
+                       (Rectangle){0, 0, screen_width, screen_height},
+                       (Vector2){0, 0}, 0.0f, WHITE);
+
+        DrawPlanetCentered(planet, planet_position[1]);
+
+        for (int i = 0; i < meteors_level2_size; i++)
+        {
+            DrawMeteorCentered(meteor, meteors_level2[i]);
+        }
+
+        DrawTexturePro(rocketTex[rocket.dir],
+                       (Rectangle){0, 0, rocketTex[rocket.dir].width, rocketTex[rocket.dir].height},
+                       (Rectangle){rocket.pos.x * CELL, rocket.pos.y * CELL, rocketSize, rocketSize},
+                       (Vector2){0, 0}, 0.0f, WHITE);
+
+        for (int i = 0; i < wallCount2; i++)
+        {
+            DrawWall(wall_level2[i]);
+        }
+
+        if (!AllKeysCollected(keys_level2))
+        {
+            for (int i = 0; i < 4; i++)
+                DrawWallThick(redWalls_level2[i], RED, PLANET_WALL_THICK);
+        }
+
+        DrawKeys(keys_level2, blackholeAnimTime);
+
+        DrawBlackHole(blackholes_level2[0], blackholeAnimTime);
+        DrawBlackHole(blackholes_level2[1], blackholeAnimTime);
+
+        // UpdateAndDrawFlames(flameEmitters2, flameEmitterCount2, GetFrameTime());
+
+        updateRocket(&rocket, wall_level2, wallCount2, redWalls_level2, !AllKeysCollected(keys_level2), meteors_level2, meteors_level2_size);
+        UpdateKeyPickups(keys_level2, rocket.pos);
+
+        {
+            Vector2 teleportDest;
+            if (CheckBlackHoleTeleport(rocket.pos, blackholes_level2, &teleportDest))
+            {
+                rocket.pos = teleportDest;
+                teleportCooldown = BLACKHOLE_COOLDOWN;
+                PlaySound(clicksound);
+            }
+        }
+
+        DrawHUD(2, KEY_TYPE_COUNT - CountKeysCollected(keys_level2));
+
+        if (AllKeysCollected(keys_level2) && is_at_same_place(planet_position[1], rocket.pos))
         {
             PlaySound(level_up_sound);
             StopLevelTimer(1);
-            isPaused = false;
             level = TR_WIN_2;
         }
-    }
+        break;
 
-    DrawHUD(2, KEY_TYPE_COUNT - CountKeysCollected(keys_level2));
-
-    if (isPaused)
-    {
-        DrawPauseMenu();
-    }
-    break;
     case TR_WIN_2:
-    mousepos = GetMousePosition();
+        mousepos = GetMousePosition();
 
-    DrawTexturePro(space_background,
-                   (Rectangle){0, 0, space_background.width, space_background.height},
-                   (Rectangle){0, 0, screen_width, screen_height},
-                   (Vector2){0, 0}, 0.0f, WHITE);
+        DrawTexturePro(space_background2,
+                       (Rectangle){0, 0, space_background2.width, space_background2.height},
+                       (Rectangle){0, 0, screen_width, screen_height},
+                       (Vector2){0, 0}, 0.0f, WHITE);
 
-    {
-        Color nextBtnColor = GetButtonColor(message_box2, mousepos, Button_color);
-        DrawRectangleRounded(message_box2, 1.0f, 8, nextBtnColor);
-    }
-    DrawRectangleRoundedLinesEx(message_box2, 1.0f, 8, 2, BLACK);
-
-    DrawTextEx(font_play, transition2_msg1, message3_pos, font_size, spacing, BLUE);
-    DrawTextEx(font_play, transition2_msg2, message4_pos, font_size, spacing, BLUE);
-
-    {
-        char resultText[64];
-        snprintf(resultText, sizeof(resultText), "Your Time: %s   Best: %s",
-                 FormatTime(levelTimes[1]), FormatTime(bestLevelTimes[1]));
-        Vector2 resultSize = MeasureTextEx(font_play, resultText, 22, spacing);
-        DrawTextEx(font_play, resultText,
-                   (Vector2){screen_width / 2 - resultSize.x / 2, message_box2.y + message_box2.height + 15},
-                   22, spacing, GOLD);
-    }
-
-    if (CheckCollisionPointRec(mousepos, message_box2) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
-    {
-        PlaySound(clicksound);
-        rocket.pos = rocket_position[2];
-        rocket.dir = RIGHT;
-        currentLevelNumber = 3;
-        StartLevelTimer();
-        isPaused = false;
-        level = LEVEL_3;
-    }
-    break;
-
-
-
-   case LEVEL_3:
-
-    if (IsKeyPressed(KEY_SPACE))
-    {
-        isPaused = !isPaused;
-    }
-
-    if (!isPaused && timerRunning)
-    {
-        levelElapsedTime += GetFrameTime();
-    }
-
-    if (!isPaused)
-    {
-        if (teleportCooldown > 0.0f)
-            teleportCooldown -= GetFrameTime();
-
-        blackholeAnimTime += GetFrameTime();
-    }
-
-    DrawTexturePro(space_background,
-                   (Rectangle){0, 0, space_background.width, space_background.height},
-                   (Rectangle){0, 0, screen_width, screen_height},
-                   (Vector2){0, 0}, 0.0f, WHITE);
-
-    DrawPlanetCentered(planet, planet_position[2]);
-
-    DrawTexturePro(rocketTex[rocket.dir],
-                   (Rectangle){0, 0, rocketTex[rocket.dir].width, rocketTex[rocket.dir].height},
-                   (Rectangle){rocket.pos.x * CELL, rocket.pos.y * CELL, rocketSize, rocketSize},
-                   (Vector2){0, 0}, 0.0f, WHITE);
-
-                   for (int i = 0; i < 2; i++)
-{
-    DrawMeteorCentered(meteor, meteors_level3[i]);
-}
-
-    for (int i = 0; i < wallCount3; i++)
-    {
-        DrawWall(wall_level3[i]);
-    }
-
-    if (!AllKeysCollected(keys_level3))
-    {
-        for (int i = 0; i < 4; i++)
-            DrawWallThick(redWalls_level3[i], RED, PLANET_WALL_THICK);
-    }
-
-    DrawKeys(keys_level3, blackholeAnimTime);
-
-    DrawBlackHole(blackholes_level3[0], blackholeAnimTime);
-    DrawBlackHole(blackholes_level3[1], blackholeAnimTime);
-
-    UpdateAndDrawFlames(flameEmitters3,
-                        flameEmitterCount3,
-                        isPaused ? 0.0f : GetFrameTime());
-
-    if (!isPaused)
-    {
-        updateRocket(&rocket,
-             wall_level3,
-             wallCount3,
-             redWalls_level3,
-             !AllKeysCollected(keys_level3),
-             meteors_level3,
-             2);
-
-        UpdateKeyPickups(keys_level3, rocket.pos);
-
-        Vector2 teleportDest;
-
-        if (CheckBlackHoleTeleport(rocket.pos,
-                                   blackholes_level3,
-                                   &teleportDest))
         {
-            rocket.pos = teleportDest;
-            teleportCooldown = BLACKHOLE_COOLDOWN;
-            PlaySound(clicksound);
+            Color nextBtnColor = GetButtonColor(message_box2, mousepos, Button_color);
+            DrawRectangleRounded(message_box2, 1.0f, 8, nextBtnColor);
         }
 
-        if (AllKeysCollected(keys_level3) &&
-            is_at_same_place(planet_position[2], rocket.pos))
+        DrawRectangleRoundedLinesEx(message_box2, 1.0f, 8, 2, BLACK);
+
+        DrawTextEx(font_play, transition2_msg1, message3_pos, font_size, spacing, BLUE);
+        DrawTextEx(font_play, transition2_msg2, message4_pos, font_size, spacing, BLUE);
+
+        {
+            char yourTimeStr[32];
+            char resultText[64];
+            snprintf(yourTimeStr, sizeof(yourTimeStr), "%s", FormatTime(levelTimes[1]));
+            snprintf(resultText, sizeof(resultText), "Your Time: %s   Best: %s", yourTimeStr, FormatTime(bestLevelTimes[1]));
+            Vector2 resultSize = MeasureTextEx(font_play, resultText, 22, spacing);
+            DrawTextEx(font_play, resultText, (Vector2){screen_width / 2 - resultSize.x / 2, message_box.y + message_box.height + 15}, 22, spacing, GOLD);
+        }
+
+        if (CheckCollisionPointRec(mousepos, message_box2) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+        {
+            PlaySound(clicksound);
+            rocket.pos = rocket_position[2];
+            rocket.dir = RIGHT;
+            currentLevelNumber = 3;
+            StartLevelTimer();
+            level = LEVEL_3;
+        }
+
+        break;
+
+    case LEVEL_3:
+
+        if (timerRunning)
+            levelElapsedTime += GetFrameTime();
+        if (teleportCooldown > 0.0f)
+            teleportCooldown -= GetFrameTime();
+        blackholeAnimTime += GetFrameTime();
+
+        DrawTexturePro(space_background3,
+                       (Rectangle){0, 0, space_background3.width, space_background3.height},
+                       (Rectangle){0, 0, screen_width, screen_height},
+                       (Vector2){0, 0}, 0.0f, WHITE);
+
+        DrawPlanetCentered(planet, planet_position[2]);
+
+        for (int i = 0; i < meteors_level3_size; i++)
+        {
+            DrawMeteorCentered(meteor, meteors_level3[i]);
+        }
+
+        DrawTexturePro(rocketTex[rocket.dir],
+                       (Rectangle){0, 0, rocketTex[rocket.dir].width, rocketTex[rocket.dir].height},
+                       (Rectangle){rocket.pos.x * CELL, rocket.pos.y * CELL, rocketSize, rocketSize},
+                       (Vector2){0, 0}, 0.0f, WHITE);
+
+        for (int i = 0; i < wallCount3; i++)
+        {
+            DrawWall(wall_level3[i]);
+        }
+
+        if (!AllKeysCollected(keys_level3))
+        {
+            for (int i = 0; i < 4; i++)
+                DrawWallThick(redWalls_level3[i], RED, PLANET_WALL_THICK);
+        }
+
+        DrawKeys(keys_level3, blackholeAnimTime);
+
+        DrawBlackHole(blackholes_level3[0], blackholeAnimTime);
+        DrawBlackHole(blackholes_level3[1], blackholeAnimTime);
+
+        UpdateAndDrawFlames(flameEmitters3, flameEmitterCount3, GetFrameTime());
+
+        updateRocket(&rocket, wall_level3, wallCount3, redWalls_level3, !AllKeysCollected(keys_level3), meteors_level3, meteors_level3_size);
+        UpdateKeyPickups(keys_level3, rocket.pos);
+
+        {
+            Vector2 teleportDest;
+            if (CheckBlackHoleTeleport(rocket.pos, blackholes_level3, &teleportDest))
+            {
+                rocket.pos = teleportDest;
+                teleportCooldown = BLACKHOLE_COOLDOWN;
+                PlaySound(clicksound);
+            }
+        }
+
+        DrawHUD(3, KEY_TYPE_COUNT - CountKeysCollected(keys_level3));
+
+        if (AllKeysCollected(keys_level3) && is_at_same_place(planet_position[2], rocket.pos))
         {
             PlaySound(level_up_sound);
             StopLevelTimer(2);
-            isPaused = false;
             level = TR_WIN_3;
         }
-    }
+        break;
 
-    DrawHUD(3, KEY_TYPE_COUNT - CountKeysCollected(keys_level3));
-
-    if (isPaused)
-    {
-        DrawPauseMenu();
-    }
-    break;
     case TR_WIN_3:
-    mousepos = GetMousePosition();
+        mousepos = GetMousePosition();
 
-    DrawTexturePro(space_background,
-                   (Rectangle){0, 0, space_background.width, space_background.height},
-                   (Rectangle){0, 0, screen_width, screen_height},
-                   (Vector2){0, 0}, 0.0f, WHITE);
+        DrawTexturePro(space_background3,
+                       (Rectangle){0, 0, space_background3.width, space_background3.height},
+                       (Rectangle){0, 0, screen_width, screen_height},
+                       (Vector2){0, 0}, 0.0f, WHITE);
 
-    {
-        Color nextBtnColor = GetButtonColor(message_box3, mousepos, Button_color);
-        DrawRectangleRounded(message_box3, 1.0f, 8, nextBtnColor);
-    }
-    DrawRectangleRoundedLinesEx(message_box3, 1.0f, 8, 2, BLACK);
+        {
+            Color nextBtnColor = GetButtonColor(message_box3, mousepos, Button_color);
+            DrawRectangleRounded(message_box3, 1.0f, 8, nextBtnColor);
+        }
 
-    DrawTextEx(font_play, transition3_msg1, message5_pos, font_size, spacing, BLUE);
-    DrawTextEx(font_play, transition3_msg2, message6_pos, font_size, spacing, BLUE);
+        DrawRectangleRoundedLinesEx(message_box3, 1.0f, 8, 2, BLACK);
 
-    {
-        char resultText[64];
-        snprintf(resultText, sizeof(resultText), "Your Time: %s   Best: %s",
-                 FormatTime(levelTimes[2]), FormatTime(bestLevelTimes[2]));
-        Vector2 resultSize = MeasureTextEx(font_play, resultText, 22, spacing);
-        DrawTextEx(font_play, resultText,
-                   (Vector2){screen_width / 2 - resultSize.x / 2, message_box3.y + message_box3.height + 15},
-                   22, spacing, GOLD);
-    }
+        DrawTextEx(font_play, transition3_msg1, message5_pos, font_size, spacing, BLUE);
+        DrawTextEx(font_play, transition3_msg2, message6_pos, font_size, spacing, BLUE);
 
-    if (CheckCollisionPointRec(mousepos, message_box3) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
-    {
-        PlaySound(clicksound);
-        rocket.pos = rocket_position[3];
-        rocket.dir = LEFT;
-        currentLevelNumber = 4;
-        StartLevelTimer();
-        isPaused = false;
-        level = LEVEL4;
-    }
+        {
+            char yourTimeStr[32];
+            char resultText[64];
+            snprintf(yourTimeStr, sizeof(yourTimeStr), "%s", FormatTime(levelTimes[2]));
+            snprintf(resultText, sizeof(resultText), "Your Time: %s   Best: %s", yourTimeStr, FormatTime(bestLevelTimes[2]));
+            Vector2 resultSize = MeasureTextEx(font_play, resultText, 22, spacing);
+            DrawTextEx(font_play, resultText, (Vector2){screen_width / 2 - resultSize.x / 2, message_box.y + message_box.height + 15}, 22, spacing, GOLD);
+        }
 
-    break;
+        if (CheckCollisionPointRec(mousepos, message_box3) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+        {
+            PlaySound(clicksound);
+            rocket.pos = rocket_position[3];
+            rocket.dir = LEFT;
+            currentLevelNumber = 4;
+            StartLevelTimer();
+            ResetSpaceShips();
+            level = LEVEL4;
+        }
+
+        break;
 
     case LEVEL4:
 
-    if (IsKeyPressed(KEY_SPACE))
-    {
-        isPaused = !isPaused;
-    }
-
-    if (!isPaused && timerRunning)
-    {
-        levelElapsedTime += GetFrameTime();
-    }
-
-    if (!isPaused)
-    {
+        if (timerRunning)
+            levelElapsedTime += GetFrameTime();
         if (teleportCooldown > 0.0f)
             teleportCooldown -= GetFrameTime();
-
         blackholeAnimTime += GetFrameTime();
-    }
 
-    DrawTexturePro(space_background,
-                   (Rectangle){0, 0, space_background.width, space_background.height},
-                   (Rectangle){0, 0, screen_width, screen_height},
-                   (Vector2){0, 0}, 0.0f, WHITE);
+        updateSpaceShip(&alienShip1);
+        updateSpaceShip(&alienShip2);
 
-                   for (int i = 0; i < 2; i++)
-{
-    DrawMeteorCentered(meteor, meteors_level4[i]);
-}
+        DrawTexturePro(space_background4,
+                       (Rectangle){0, 0, space_background4.width, space_background4.height},
+                       (Rectangle){0, 0, screen_width, screen_height},
+                       (Vector2){0, 0}, 0.0f, WHITE);
 
-    DrawPlanetCentered(planet, planet_position[3]);
+        DrawPlanetCentered(planet, planet_position[3]);
+        DrawSpaceShipCentered(alien_spaceship, alienShip1.pos);
+        DrawSpaceShipCentered(alien_spaceship, alienShip2.pos);
 
-    DrawTexturePro(rocketTex[rocket.dir],
-                   (Rectangle){0, 0, rocketTex[rocket.dir].width, rocketTex[rocket.dir].height},
-                   (Rectangle){rocket.pos.x * CELL, rocket.pos.y * CELL, rocketSize, rocketSize},
-                   (Vector2){0, 0}, 0.0f, WHITE);
+        DrawTexturePro(rocketTex[rocket.dir],
+                       (Rectangle){0, 0, rocketTex[rocket.dir].width, rocketTex[rocket.dir].height},
+                       (Rectangle){rocket.pos.x * CELL, rocket.pos.y * CELL, rocketSize, rocketSize},
+                       (Vector2){0, 0}, 0.0f, WHITE);
 
-    for (int i = 0; i < wallCount4; i++)
-    {
-        DrawWall(wall_level4[i]);
-    }
-
-    if (!AllKeysCollected(keys_level4))
-    {
-        for (int i = 0; i < 4; i++)
-            DrawWallThick(redWalls_level4[i], RED, PLANET_WALL_THICK);
-    }
-
-    DrawKeys(keys_level4, blackholeAnimTime);
-
-    DrawBlackHole(blackholes_level4[0], blackholeAnimTime);
-    DrawBlackHole(blackholes_level4[1], blackholeAnimTime);
-
-    UpdateAndDrawFlames(flameEmitters4,
-                        flameEmitterCount4,
-                        isPaused ? 0.0f : GetFrameTime());
-
-    if (!isPaused)
-    {
-        updateRocket(&rocket,
-             wall_level4,
-             wallCount4,
-             redWalls_level4,
-             !AllKeysCollected(keys_level4),
-             meteors_level4,
-             2);
-
-        UpdateKeyPickups(keys_level4, rocket.pos);
-
-        Vector2 teleportDest;
-
-        if (CheckBlackHoleTeleport(rocket.pos,
-                                   blackholes_level4,
-                                   &teleportDest))
+        for (int i = 0; i < wallCount4; i++)
         {
-            rocket.pos = teleportDest;
-            teleportCooldown = BLACKHOLE_COOLDOWN;
-            PlaySound(clicksound);
+            DrawWall(wall_level4[i]);
         }
 
-        if (AllKeysCollected(keys_level4) &&
-            is_at_same_place(planet_position[3], rocket.pos))
+        if (!AllKeysCollected(keys_level4))
+        {
+            for (int i = 0; i < 4; i++)
+                DrawWallThick(redWalls_level4[i], RED, PLANET_WALL_THICK);
+        }
+
+        DrawKeys(keys_level4, blackholeAnimTime);
+
+        DrawBlackHole(blackholes_level4[0], blackholeAnimTime);
+        DrawBlackHole(blackholes_level4[1], blackholeAnimTime);
+
+        UpdateAndDrawFlames(flameEmitters4, flameEmitterCount4, GetFrameTime());
+
+        updateRocket(&rocket, wall_level4, wallCount4, redWalls_level4, !AllKeysCollected(keys_level4), NULL, 0);
+        UpdateKeyPickups(keys_level4, rocket.pos);
+
+        // Check collision with alien spaceships
+        if (CheckAlienShipCollision(rocket.pos, alienShip1.pos))
+        {
+            rocket.pos = rocket_position[3];
+            PlaySound(crashsound);
+        }
+        if (CheckAlienShipCollision(rocket.pos, alienShip2.pos))
+        {
+            rocket.pos = rocket_position[3];
+            PlaySound(crashsound);
+        }
+
+        {
+            Vector2 teleportDest;
+            if (CheckBlackHoleTeleport(rocket.pos, blackholes_level4, &teleportDest))
+            {
+                rocket.pos = teleportDest;
+                teleportCooldown = BLACKHOLE_COOLDOWN;
+                PlaySound(clicksound);
+            }
+        }
+
+        DrawHUD(4, KEY_TYPE_COUNT - CountKeysCollected(keys_level4));
+
+        if (AllKeysCollected(keys_level4) && is_at_same_place(planet_position[3], rocket.pos))
         {
             PlaySound(level_up_sound);
             StopLevelTimer(3);
-            isPaused = false;
             level = TR_WIN_4;
         }
-    }
+        break;
 
-    DrawHUD(4, KEY_TYPE_COUNT - CountKeysCollected(keys_level4));
-
-    if (isPaused)
-    {
-        DrawPauseMenu();
-    }
-    break;
     case TR_WIN_4:
-    mousepos = GetMousePosition();
+        mousepos = GetMousePosition();
 
-    DrawTexturePro(space_background,
-                   (Rectangle){0, 0, space_background.width, space_background.height},
-                   (Rectangle){0, 0, screen_width, screen_height},
-                   (Vector2){0, 0}, 0.0f, WHITE);
+        DrawTexturePro(space_background4,
+                       (Rectangle){0, 0, space_background4.width, space_background4.height},
+                       (Rectangle){0, 0, screen_width, screen_height},
+                       (Vector2){0, 0}, 0.0f, WHITE);
 
-    {
-        Color nextBtnColor = GetButtonColor(message_box3, mousepos, Button_color);
-        DrawRectangleRounded(message_box3, 1.0f, 8, nextBtnColor);
-    }
-    DrawRectangleRoundedLinesEx(message_box3, 1.0f, 8, 2, BLACK);
+        {
+            Color nextBtnColor = GetButtonColor(message_box3, mousepos, Button_color);
+            DrawRectangleRounded(message_box3, 1.0f, 8, nextBtnColor);
+        }
 
-    DrawTextEx(font_play, transition4_msg1, message5_pos, font_size, spacing, BLUE);
-    DrawTextEx(font_play, transition4_msg2, message6_pos, font_size, spacing, BLUE);
+        DrawRectangleRoundedLinesEx(message_box3, 1.0f, 8, 2, BLACK);
 
-    {
-        char resultText[64];
-        snprintf(resultText, sizeof(resultText), "Your Time: %s   Best: %s",
-                 FormatTime(levelTimes[3]), FormatTime(bestLevelTimes[3]));
-        Vector2 resultSize = MeasureTextEx(font_play, resultText, 22, spacing);
-        DrawTextEx(font_play, resultText,
-                   (Vector2){screen_width / 2 - resultSize.x / 2, message_box3.y + message_box3.height + 15},
-                   22, spacing, GOLD);
-    }
+        DrawTextEx(font_play, transition4_msg1, message5_pos, font_size, spacing, BLUE);
+        DrawTextEx(font_play, transition4_msg2, message6_pos, font_size, spacing, BLUE);
 
-    if (CheckCollisionPointRec(mousepos, message_box3) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
-    {
-        PlaySound(clicksound);
-        level = TOTAL_WINDOW;
-    }
+        {
+            char yourTimeStr[32];
+            char resultText[64];
+            snprintf(yourTimeStr, sizeof(yourTimeStr), "%s", FormatTime(levelTimes[3]));
+            snprintf(resultText, sizeof(resultText), "Your Time: %s   Best: %s", yourTimeStr, FormatTime(bestLevelTimes[3]));
+            Vector2 resultSize = MeasureTextEx(font_play, resultText, 22, spacing);
+            DrawTextEx(font_play, resultText, (Vector2){screen_width / 2 - resultSize.x / 2, message_box.y + message_box.height + 15}, 22, spacing, GOLD);
+        }
 
-    break;
+        if (CheckCollisionPointRec(mousepos, message_box3) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+        {
+            PlaySound(clicksound);
+            level = TOTAL_WINDOW;
+        }
+        break;
 
     case TOTAL_WINDOW:
 
@@ -2011,8 +1922,8 @@ int main()
     scanf("%d", &levelChoice);
     level = levelChoice;
 
-switch (level)
-{
+    switch (level)
+    {
     case LEVEL_1:
         rocket.pos = rocket_position[0];
         rocket.dir = DOWN;
@@ -2031,7 +1942,7 @@ switch (level)
         break;
     default:
         break;
-}
+    }
 
     LoadLeaderboard();
 
