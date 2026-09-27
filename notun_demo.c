@@ -328,6 +328,18 @@ Vector2 playagain_button_pos;
 Rectangle playagain_button_posRec;
 
 bool exitGameRequested = false;
+static int level = 0;
+bool gamePaused = false;
+char *pause_message = "PAUSED";
+char *resume_button_message = "RESUME";
+char *exit_game_button_message = "EXIT GAME";
+
+Rectangle pause_box;
+Vector2 pause_message_pos;
+Vector2 resume_button_pos;
+Rectangle resume_button_posRec;
+Vector2 exit_game_button_pos;
+Rectangle exit_game_button_posRec;
 
 static Color GetButtonColor(Rectangle rect, Vector2 mouse, Color baseColor)
 {
@@ -536,6 +548,41 @@ void DrawHUD(int levelNumber, int keysRemaining)
 // sideways with a smooth sine wave (not random jitter), tapering and
 // changing color as it climbs - which reads as a flame lick instead of
 // scattered sparks.
+void HandlePauseMenu(void)
+{
+    DrawRectangle(0, 0, screen_width, screen_height, Fade(BLACK, 0.65f));
+
+    DrawRectangleRounded(pause_box, 0.1f, 8, Fade((Color){10, 15, 40, 255}, 0.95f));
+    DrawRectangleRoundedLinesEx(pause_box, 0.1f, 8, 2, GOLD);
+
+    DrawTextEx(font_play, pause_message, pause_message_pos, (float)font_play.baseSize + 20, 2, GOLD);
+
+    Color resumeBtnColor = GetButtonColor(resume_button_posRec, mousepos, Button_color);
+    Color exitBtnColor = GetButtonColor(exit_game_button_posRec, mousepos, Button_color);
+
+    DrawRectangleRounded(resume_button_posRec, 1.0f, 8, resumeBtnColor);
+    DrawRectangleRoundedLinesEx(resume_button_posRec, 1.0f, 8, 2, BLACK);
+    DrawTextEx(font_play, resume_button_message, resume_button_pos, (float)font_play.baseSize + 10, 2, GREEN);
+
+    DrawRectangleRounded(exit_game_button_posRec, 1.0f, 8, exitBtnColor);
+    DrawRectangleRoundedLinesEx(exit_game_button_posRec, 1.0f, 8, 2, BLACK);
+    DrawTextEx(font_play, exit_game_button_message, exit_game_button_pos, (float)font_play.baseSize + 10, 2, RED);
+
+    if (CheckCollisionPointRec(mousepos, resume_button_posRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+    {
+        PlaySound(clicksound);
+        gamePaused = false;
+        timerRunning = true;
+    }
+
+    if (CheckCollisionPointRec(mousepos, exit_game_button_posRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+    {
+        PlaySound(clicksound);
+        gamePaused = false;
+        timerRunning = false;
+        level = ZERO_WINDOW;   
+    }
+}
 
 void InitFireParticles(void)
 {
@@ -1320,6 +1367,45 @@ void load_data_name_window()
         name_input_box.x + 15,
         name_input_box.y + name_input_box.height / 2 - font_size / 2};
 }
+void load_data_pause_window()
+{
+    float box_width = 500;
+    float box_height = 280;
+
+    pause_box = (Rectangle){
+        screen_width / 2 - box_width / 2,
+        screen_height / 2 - box_height / 2,
+        box_width,
+        box_height};
+
+    Vector2 pause_msg_size = MeasureTextEx(font_play, pause_message, (float)font_play.baseSize + 20, 2);
+    pause_message_pos = (Vector2){
+        screen_width / 2 - pause_msg_size.x / 2,
+        pause_box.y + 30};
+
+    float paddingX = 30;
+    float paddingY = 15;
+
+    Vector2 resume_size = MeasureTextEx(font_play, resume_button_message, (float)font_play.baseSize + 10, 2);
+    resume_button_pos = (Vector2){
+        screen_width / 2 - resume_size.x / 2,
+        pause_box.y + 130};
+    resume_button_posRec = (Rectangle){
+        resume_button_pos.x - paddingX,
+        resume_button_pos.y - paddingY,
+        resume_size.x + paddingX * 2,
+        resume_size.y + paddingY * 2};
+
+    Vector2 exit_size = MeasureTextEx(font_play, exit_game_button_message, (float)font_play.baseSize + 10, 2);
+    exit_game_button_pos = (Vector2){
+        screen_width / 2 - exit_size.x / 2,
+        pause_box.y + 200};
+    exit_game_button_posRec = (Rectangle){
+        exit_game_button_pos.x - paddingX,
+        exit_game_button_pos.y - paddingY,
+        exit_size.x + paddingX * 2,
+        exit_size.y + paddingY * 2};
+}
 void load_data_rules_window()
 {
     float box_width = 900;
@@ -1517,7 +1603,7 @@ void load_data_total_window()
         playagain_size.y + padding_y * 2};
 }
 
-static int level = 0;
+
 
 void start_gameplay()
 {
@@ -1740,6 +1826,16 @@ void start_gameplay()
 
     case LEVEL_1:
 
+    
+
+        mousepos = GetMousePosition();
+        if (IsKeyPressed(KEY_SPACE))
+        {
+            gamePaused = !gamePaused;
+            timerRunning = !gamePaused;
+            PlaySound(clicksound);
+        }
+
         if (timerRunning)
             levelElapsedTime += GetFrameTime();
         if (teleportCooldown > 0.0f)
@@ -1775,23 +1871,30 @@ void start_gameplay()
         DrawBlackHole(blackholes_level1[1], blackholeAnimTime);
 
         // UpdateAndDrawFlames(flameEmitters1, flameEmitterCount1, GetFrameTime());
-
-        updateRocket(&rocket, wall_level1, wallCount1, redWalls_level1, !AllKeysCollected(keys_level1), NULL, 0);
-        UpdateKeyPickups(keys_level1, rocket.pos);
-
+                if (!gamePaused)
         {
-            Vector2 teleportDest;
-            if (CheckBlackHoleTeleport(rocket.pos, blackholes_level1, &teleportDest))
+            updateRocket(&rocket, wall_level1, wallCount1, redWalls_level1, !AllKeysCollected(keys_level1), NULL, 0);
+            UpdateKeyPickups(keys_level1, rocket.pos);
+
             {
-                rocket.pos = teleportDest;
-                teleportCooldown = BLACKHOLE_COOLDOWN;
-                PlaySound(clicksound);
+                Vector2 teleportDest;
+                if (CheckBlackHoleTeleport(rocket.pos, blackholes_level1, &teleportDest))
+                {
+                    rocket.pos = teleportDest;
+                    teleportCooldown = BLACKHOLE_COOLDOWN;
+                    PlaySound(clicksound);
+                }
             }
         }
 
         DrawHUD(1, KEY_TYPE_COUNT - CountKeysCollected(keys_level1));
 
-        if (AllKeysCollected(keys_level1) && is_at_same_place(planet_position[0], rocket.pos))
+        if (gamePaused)
+        {
+            HandlePauseMenu();
+        }
+
+        if (!gamePaused && AllKeysCollected(keys_level1) && is_at_same_place(planet_position[0], rocket.pos))
         {
             PlaySound(level_up_sound);
             StopLevelTimer(0);
@@ -1838,6 +1941,13 @@ void start_gameplay()
         break;
 
     case LEVEL_2:
+      mousepos = GetMousePosition();
+        if (IsKeyPressed(KEY_SPACE))
+        {
+            gamePaused = !gamePaused;
+            timerRunning = !gamePaused;
+            PlaySound(clicksound);
+        }
 
         if (timerRunning)
             levelElapsedTime += GetFrameTime();
@@ -1880,22 +1990,30 @@ void start_gameplay()
 
         // UpdateAndDrawFlames(flameEmitters2, flameEmitterCount2, GetFrameTime());
 
-        updateRocket(&rocket, wall_level2, wallCount2, redWalls_level2, !AllKeysCollected(keys_level2), meteors_level2, meteors_level2_size);
-        UpdateKeyPickups(keys_level2, rocket.pos);
-
+               if (!gamePaused)
         {
-            Vector2 teleportDest;
-            if (CheckBlackHoleTeleport(rocket.pos, blackholes_level2, &teleportDest))
+            updateRocket(&rocket, wall_level2, wallCount2, redWalls_level2, !AllKeysCollected(keys_level2), meteors_level2, meteors_level2_size);
+            UpdateKeyPickups(keys_level2, rocket.pos);
+
             {
-                rocket.pos = teleportDest;
-                teleportCooldown = BLACKHOLE_COOLDOWN;
-                PlaySound(clicksound);
+                Vector2 teleportDest;
+                if (CheckBlackHoleTeleport(rocket.pos, blackholes_level2, &teleportDest))
+                {
+                    rocket.pos = teleportDest;
+                    teleportCooldown = BLACKHOLE_COOLDOWN;
+                    PlaySound(clicksound);
+                }
             }
         }
 
         DrawHUD(2, KEY_TYPE_COUNT - CountKeysCollected(keys_level2));
 
-        if (AllKeysCollected(keys_level2) && is_at_same_place(planet_position[1], rocket.pos))
+        if (gamePaused)
+        {
+            HandlePauseMenu();
+        }
+
+        if (!gamePaused && AllKeysCollected(keys_level2) && is_at_same_place(planet_position[1], rocket.pos))
         {
             PlaySound(level_up_sound);
             StopLevelTimer(1);
@@ -1943,6 +2061,13 @@ void start_gameplay()
         break;
 
     case LEVEL_3:
+      mousepos = GetMousePosition();
+        if (IsKeyPressed(KEY_SPACE))
+        {
+            gamePaused = !gamePaused;
+            timerRunning = !gamePaused;
+            PlaySound(clicksound);
+        }
 
         if (timerRunning)
             levelElapsedTime += GetFrameTime();
@@ -1985,22 +2110,36 @@ void start_gameplay()
 
         UpdateAndDrawFlames(flameEmitters3, flameEmitterCount3, GetFrameTime());
 
-        updateRocket(&rocket, wall_level3, wallCount3, redWalls_level3, !AllKeysCollected(keys_level3), meteors_level3, meteors_level3_size);
-        UpdateKeyPickups(keys_level3, rocket.pos);
-
+                if (!gamePaused)
         {
-            Vector2 teleportDest;
-            if (CheckBlackHoleTeleport(rocket.pos, blackholes_level3, &teleportDest))
+            UpdateAndDrawFlames(flameEmitters3, flameEmitterCount3, GetFrameTime());
+
+            updateRocket(&rocket, wall_level3, wallCount3, redWalls_level3, !AllKeysCollected(keys_level3), meteors_level3, meteors_level3_size);
+            UpdateKeyPickups(keys_level3, rocket.pos);
+
             {
-                rocket.pos = teleportDest;
-                teleportCooldown = BLACKHOLE_COOLDOWN;
-                PlaySound(clicksound);
+                Vector2 teleportDest;
+                if (CheckBlackHoleTeleport(rocket.pos, blackholes_level3, &teleportDest))
+                {
+                    rocket.pos = teleportDest;
+                    teleportCooldown = BLACKHOLE_COOLDOWN;
+                    PlaySound(clicksound);
+                }
             }
+        }
+        else
+        {
+            UpdateAndDrawFlames(flameEmitters3, flameEmitterCount3, 0.0f);
         }
 
         DrawHUD(3, KEY_TYPE_COUNT - CountKeysCollected(keys_level3));
 
-        if (AllKeysCollected(keys_level3) && is_at_same_place(planet_position[2], rocket.pos))
+        if (gamePaused)
+        {
+            HandlePauseMenu();
+        }
+
+        if (!gamePaused && AllKeysCollected(keys_level3) && is_at_same_place(planet_position[2], rocket.pos))
         {
             PlaySound(level_up_sound);
             StopLevelTimer(2);
@@ -2049,6 +2188,13 @@ void start_gameplay()
         break;
 
     case LEVEL4:
+      mousepos = GetMousePosition();
+        if (IsKeyPressed(KEY_SPACE))
+        {
+            gamePaused = !gamePaused;
+            timerRunning = !gamePaused;
+            PlaySound(clicksound);
+        }
 
         if (timerRunning)
             levelElapsedTime += GetFrameTime();
@@ -2056,8 +2202,11 @@ void start_gameplay()
             teleportCooldown -= GetFrameTime();
         blackholeAnimTime += GetFrameTime();
 
-        updateSpaceShip(&alienShip1);
-        updateSpaceShip(&alienShip2);
+                if (!gamePaused)
+        {
+            updateSpaceShip(&alienShip1);
+            updateSpaceShip(&alienShip2);
+        }
 
         DrawTexturePro(space_background4,
                        (Rectangle){0, 0, space_background4.width, space_background4.height},
@@ -2089,36 +2238,47 @@ void start_gameplay()
         DrawBlackHole(blackholes_level4[0], blackholeAnimTime);
         DrawBlackHole(blackholes_level4[1], blackholeAnimTime);
 
-        UpdateAndDrawFlames(flameEmitters4, flameEmitterCount4, GetFrameTime());
-
-        updateRocket(&rocket, wall_level4, wallCount4, redWalls_level4, !AllKeysCollected(keys_level4), NULL, 0);
-        UpdateKeyPickups(keys_level4, rocket.pos);
-
-        // Check collision with alien spaceships
-        if (CheckAlienShipCollision(rocket.pos, alienShip1.pos))
+                if (!gamePaused)
         {
-            rocket.pos = rocket_position[3];
-            PlaySound(crashsound);
-        }
-        if (CheckAlienShipCollision(rocket.pos, alienShip2.pos))
-        {
-            rocket.pos = rocket_position[3];
-            PlaySound(crashsound);
-        }
+            UpdateAndDrawFlames(flameEmitters4, flameEmitterCount4, GetFrameTime());
 
-        {
-            Vector2 teleportDest;
-            if (CheckBlackHoleTeleport(rocket.pos, blackholes_level4, &teleportDest))
+            updateRocket(&rocket, wall_level4, wallCount4, redWalls_level4, !AllKeysCollected(keys_level4), NULL, 0);
+            UpdateKeyPickups(keys_level4, rocket.pos);
+
+            if (CheckAlienShipCollision(rocket.pos, alienShip1.pos))
             {
-                rocket.pos = teleportDest;
-                teleportCooldown = BLACKHOLE_COOLDOWN;
-                PlaySound(clicksound);
+                rocket.pos = rocket_position[3];
+                PlaySound(crashsound);
             }
+            if (CheckAlienShipCollision(rocket.pos, alienShip2.pos))
+            {
+                rocket.pos = rocket_position[3];
+                PlaySound(crashsound);
+            }
+
+            {
+                Vector2 teleportDest;
+                if (CheckBlackHoleTeleport(rocket.pos, blackholes_level4, &teleportDest))
+                {
+                    rocket.pos = teleportDest;
+                    teleportCooldown = BLACKHOLE_COOLDOWN;
+                    PlaySound(clicksound);
+                }
+            }
+        }
+        else
+        {
+            UpdateAndDrawFlames(flameEmitters4, flameEmitterCount4, 0.0f);
         }
 
         DrawHUD(4, KEY_TYPE_COUNT - CountKeysCollected(keys_level4));
 
-        if (AllKeysCollected(keys_level4) && is_at_same_place(planet_position[3], rocket.pos))
+        if (gamePaused)
+        {
+            HandlePauseMenu();
+        }
+
+        if (!gamePaused && AllKeysCollected(keys_level4) && is_at_same_place(planet_position[3], rocket.pos))
         {
             PlaySound(level_up_sound);
             StopLevelTimer(3);
@@ -2229,6 +2389,8 @@ int main()
     InitAudioDevice();
     SetMasterVolume(0.5f);
     SetTargetFPS(60);
+    load_data_0();
+    load_data_pause_window();
 
     int levelChoice;
     printf("Enter window number (0-12): ");
