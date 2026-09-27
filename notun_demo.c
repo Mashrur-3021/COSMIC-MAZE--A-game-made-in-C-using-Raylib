@@ -240,11 +240,16 @@ char *rules_line9 = "Be careful, and good luck on your journey!";
 
 char *start_button_message = "START";
 
+char *supervisor_label = "SUPERVISOR-";
+char *supervisor_name = "ABU BASHIR SHUAIB SIR";
+
+Vector2 supervisor_label_pos;
+Vector2 supervisor_name_pos;
+
 Rectangle rules_box;
 Vector2 rules_line_pos[9];
 Vector2 start_button_pos;
 Rectangle start_button_posRec;
-
 
 // variables for manu windows
 Font font_play;
@@ -1279,6 +1284,17 @@ void load_credentials()
         credential_back_pos.y - paddingY,
         back_size.x + paddingX * 2,
         back_size.y + paddingY * 2};
+
+    Vector2 supervisor_label_size = MeasureTextEx(font_play, supervisor_label, font_size, spacing);
+    Vector2 supervisor_name_size = MeasureTextEx(font_play, supervisor_name, font_size, spacing);
+
+    supervisor_label_pos = (Vector2){
+        screen_width / 2 - supervisor_label_size.x / 2,
+        credential_name2_pos.y + name2_size.y + line_gap * 3};
+
+    supervisor_name_pos = (Vector2){
+        screen_width / 2 - supervisor_name_size.x / 2,
+        supervisor_label_pos.y + supervisor_label_size.y + line_gap};
 }
 
 void load_data_name_window()
@@ -1575,8 +1591,8 @@ void start_gameplay()
             char *noScoresMsg = "No completed runs yet - finish all 4 levels to set a score!";
             Vector2 noScoresSize = MeasureTextEx(font_play, noScoresMsg, 24, spacing);
             DrawTextEx(font_play, noScoresMsg,
-                      (Vector2){screen_width / 2 - noScoresSize.x / 2, screen_height / 2 - noScoresSize.y / 2},
-                      24, spacing, GOLD);
+                       (Vector2){screen_width / 2 - noScoresSize.x / 2, screen_height / 2 - noScoresSize.y / 2},
+                       24, spacing, GOLD);
         }
         else
         {
@@ -1588,14 +1604,14 @@ void start_gameplay()
             {
                 char rowText[64];
                 snprintf(rowText, sizeof(rowText), "%2d.  %-16s  %s",
-                        i + 1, playerScores[i].name, FormatTime(playerScores[i].avgTime));
+                         i + 1, playerScores[i].name, FormatTime(playerScores[i].avgTime));
 
                 Vector2 rowSize = MeasureTextEx(font_play, rowText, 26, spacing);
                 Color rowColor = (i == 0) ? GOLD : (Color){170, 210, 255, 255}; // highlight the #1 spot
 
                 DrawTextEx(font_play, rowText,
-                          (Vector2){screen_width / 2 - rowSize.x / 2, rowsStartY + i * rowGap},
-                          26, spacing, rowColor);
+                           (Vector2){screen_width / 2 - rowSize.x / 2, rowsStartY + i * rowGap},
+                           26, spacing, rowColor);
             }
         }
 
@@ -1623,6 +1639,8 @@ void start_gameplay()
 
         DrawTextEx(font_play, credential_name1, credential_name1_pos, (float)font_play.baseSize + 10, 2, GOLD);
         DrawTextEx(font_play, credential_name2, credential_name2_pos, (float)font_play.baseSize + 10, 2, GOLD);
+        DrawTextEx(font_play, supervisor_label, supervisor_label_pos, (float)font_play.baseSize + 10, 2, GOLD);
+        DrawTextEx(font_play, supervisor_name, supervisor_name_pos, (float)font_play.baseSize + 10, 2, GOLD);
 
         {
             Color backBtnColor = GetButtonColor(credential_back_posRec, mousepos, Button_color);
@@ -1672,16 +1690,15 @@ void start_gameplay()
             playerName[nameLetterCount] = '\0';
         }
 
-       
-       if (IsKeyPressed(KEY_ENTER) && nameLetterCount > 0)
-    {
-        PlaySound(clicksound);
-        level = RULES;
-    }
+        if (IsKeyPressed(KEY_ENTER) && nameLetterCount > 0)
+        {
+            PlaySound(clicksound);
+            level = RULES;
+        }
 
         break;
     }
-        case RULES:
+    case RULES:
         mousepos = GetMousePosition();
 
         DrawTexturePro(space_background,
@@ -2175,8 +2192,8 @@ void start_gameplay()
 
         DrawTextEx(font_play, "Average", avg_time_pos, font_size, spacing, GOLD);
         DrawTextEx(font_play, FormatTime(avgLevelTime),
-                  (Vector2){avg_time_pos.x + MeasureTextEx(font_play, "Average", font_size, spacing).x + 45, avg_time_pos.y},
-                  font_size, spacing, GOLD);
+                   (Vector2){avg_time_pos.x + MeasureTextEx(font_play, "Average", font_size, spacing).x + 45, avg_time_pos.y},
+                   font_size, spacing, GOLD);
 
         {
             Color exitBtnColor = GetButtonColor(exit_button_posRec, mousepos, Button_color);
