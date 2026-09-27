@@ -1323,7 +1323,7 @@ void load_data_name_window()
 void load_data_rules_window()
 {
     float box_width = 900;
-    float box_height = 500;
+    float box_height = 400;
 
     rules_box = (Rectangle){
         screen_width / 2 - box_width / 2,
