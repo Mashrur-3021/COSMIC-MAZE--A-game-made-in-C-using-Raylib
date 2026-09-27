@@ -1324,3 +1324,42 @@ Wall wall_level4[] = {
 };
 
 int wallCount4 = sizeof(wall_level4) / sizeof(wall_level4[0]);
+
+Vector2 alien_path1[] = {
+    {11, 14},
+    {11, 13},
+    {10, 13},
+    {10, 12},
+    {8, 12},
+    {8, 10},
+    {12, 10},
+    {12, 7},
+    {11, 7},
+    {11, 2},
+    {10, 2},
+    {10, 4},
+    {9, 4},
+    {9, 7},
+    {10, 7},
+    {10, 8},
+    {11, 8},
+    {11, 9},
+    {7, 9},
+    {7, 14}};
+
+int alien_path1_size = sizeof(alien_path1) / sizeof(Vector2);
+
+Vector2 alien_path2[] = {
+    {12, 1},
+    {12, 3},
+    {14, 3},
+    {14, 4},
+    {16, 4},
+    {16, 7},
+    {15, 7},
+    {15, 4},
+    {14, 4},
+    {14, 3},
+    {12, 3}};
+
+int alien_path2_size = sizeof(alien_path2) / sizeof(Vector2);
