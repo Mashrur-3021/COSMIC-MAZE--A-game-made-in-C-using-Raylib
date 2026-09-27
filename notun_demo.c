@@ -2190,7 +2190,7 @@ void start_gameplay()
             DrawTextEx(font_play, FormatTime(levelTimes[i]), level_time_pos[i], font_size, spacing, (Color){0, 255, 180, 255});
         }
 
-        DrawTextEx(font_play, "Average", avg_time_pos, font_size, spacing, GOLD);
+        DrawTextEx(font_play, "Score: ", avg_time_pos, font_size, spacing, GOLD);
         DrawTextEx(font_play, FormatTime(avgLevelTime),
                    (Vector2){avg_time_pos.x + MeasureTextEx(font_play, "Average", font_size, spacing).x + 45, avg_time_pos.y},
                    font_size, spacing, GOLD);
