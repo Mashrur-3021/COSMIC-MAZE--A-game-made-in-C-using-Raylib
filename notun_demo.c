@@ -1201,7 +1201,7 @@ void load_data_0()
     float paddingX = 30;
     float paddingY = 15;
 
-    font_play = LoadFont("D:/Raylib project/Fonts/ALIEN CYBERNETICS.ttf");
+    font_play = LoadFont("D:/Maze-explorer/Fonts/ALIEN CYBERNETICS.ttf");
     play_button_pos = (Vector2){screen_width / 2 - MeasureTextEx(font_play, play_message, (float)font_play.baseSize + 20, 2).x / 2,
                                 screen_height / 2 - 30 - MeasureTextEx(font_play, play_message, (float)font_play.baseSize, 2).y / 2};
 
