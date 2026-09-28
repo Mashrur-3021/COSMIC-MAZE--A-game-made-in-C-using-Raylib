@@ -293,6 +293,9 @@ Vector2 name_input_text_pos;
 Rectangle name_label_box;
 Rectangle name_input_box;
 
+Vector2 main_exit_button_pos;
+Rectangle main_exit_button_posRec;
+
 // audio
 Music backgrnd_music;
 Sound clicksound;
@@ -1281,6 +1284,15 @@ void load_data_0()
                                             leaderboard_button_pos.y - paddingY,
                                             MeasureTextEx(font_play, leaderboard_button_message, (float)font_play.baseSize + 10, 2).x + paddingX * 2,
                                             MeasureTextEx(font_play, leaderboard_button_message, (float)font_play.baseSize + 10, 2).y + paddingY * 2};
+
+    // EXIT button - sits right under the LEADERBOARD button
+    main_exit_button_pos = (Vector2){screen_width / 2 - MeasureTextEx(font_play, exit_message, (float)font_play.baseSize + 10, 2).x / 2,
+                                     leaderboard_button_posRec.y + leaderboard_button_posRec.height + 30};
+
+    main_exit_button_posRec = (Rectangle){main_exit_button_pos.x - paddingX,
+                                          main_exit_button_pos.y - paddingY,
+                                          MeasureTextEx(font_play, exit_message, (float)font_play.baseSize + 10, 2).x + paddingX * 2,
+                                          MeasureTextEx(font_play, exit_message, (float)font_play.baseSize + 10, 2).y + paddingY * 2};
 }
 
 // Layout for the standalone LEADERBOARD screen: a centered title and a
@@ -1615,6 +1627,7 @@ void start_gameplay()
             Color playBtnColor = GetButtonColor(play_button_posRec, mousepos, Button_color);
             Color credentialBtnColor = GetButtonColor(credentialButton_posRec, mousepos, Button_color);
             Color leaderboardBtnColor = GetButtonColor(leaderboard_button_posRec, mousepos, Button_color);
+            Color exitBtnColor = GetButtonColor(main_exit_button_posRec, mousepos, Button_color);
 
             DrawTexturePro(space_background,
                            (Rectangle){0, 0, space_background.width, space_background.height},
@@ -1629,12 +1642,15 @@ void start_gameplay()
             DrawRectangleRoundedLinesEx(credentialButton_posRec, 1.0f, 8, 2, BLACK);
             DrawRectangleRounded(leaderboard_button_posRec, 1.0f, 8, leaderboardBtnColor);
             DrawRectangleRoundedLinesEx(leaderboard_button_posRec, 1.0f, 8, 2, BLACK);
+            DrawRectangleRounded(main_exit_button_posRec, 1.0f, 8, exitBtnColor);
+            DrawRectangleRoundedLinesEx(main_exit_button_posRec, 1.0f, 8, 2, BLACK);
         }
 
         DrawTextEx(font_play, play_message, play_button_pos, (float)font_play.baseSize + 10, 2, BLUE);
         DrawTextEx(font_play, game_title, game_title_pos, (float)font_play.baseSize + 40, 4, BLUE);
         DrawTextEx(font_play, credential_title, credentialButton_pos, (float)font_play.baseSize + 10, 2, BLUE);
         DrawTextEx(font_play, leaderboard_button_message, leaderboard_button_pos, (float)font_play.baseSize + 10, 2, BLUE);
+        DrawTextEx(font_play, exit_message, main_exit_button_pos, (float)font_play.baseSize + 10, 2, BLUE);
 
         if (CheckCollisionPointRec(mousepos, play_button_posRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
         {
@@ -1656,6 +1672,12 @@ void start_gameplay()
             PlaySound(clicksound);
             LoadPlayerLeaderboard();
             level = LEADERBOARD_WINDOW;
+        }
+
+        if (CheckCollisionPointRec(mousepos, main_exit_button_posRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+        {
+            PlaySound(clicksound);
+            exitGameRequested = true;
         }
 
         break;
