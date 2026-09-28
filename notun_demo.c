@@ -232,8 +232,8 @@ char rules_line1[100];
 char *rules_line2 = "Your space exploration starts here!";
 char *rules_line3 = "You must travel across four planets.";
 char *rules_line4 = "To complete each level, collect four keys";
-char *rules_line5 = "and navigate the mysterious maze.";
-char *rules_line6 = "Avoid crashing into meteors and walls.";
+char *rules_line5 = "and navigate the mysterious maze with your ";
+char *rules_line6 = "keyboard arrows.Avoid crashing into meteors and walls.";
 char *rules_line7 = "If you collide with an alien spaceship, you will";
 char *rules_line8 = "be sent back to the starting point.";
 char *rules_line9 = "Be careful, and good luck on your journey!";
@@ -580,7 +580,7 @@ void HandlePauseMenu(void)
         PlaySound(clicksound);
         gamePaused = false;
         timerRunning = false;
-        level = ZERO_WINDOW;   
+        level = ZERO_WINDOW;
     }
 }
 
@@ -1245,42 +1245,42 @@ void updateRocket(Player *rocket, Wall wall_level[], int wall_count, Wall redWal
 
 void load_data_0()
 {
-    float paddingX = 30;
+    float paddingX = 20;
     float paddingY = 15;
 
     font_play = LoadFont("D:/Maze-explorer/Fonts/ALIEN CYBERNETICS.ttf");
-    play_button_pos = (Vector2){screen_width / 2 - MeasureTextEx(font_play, play_message, (float)font_play.baseSize + 20, 2).x / 2,
+    play_button_pos = (Vector2){screen_width / 2 - MeasureTextEx(font_play, play_message, (float)font_play.baseSize + 10, 2).x / 2,
                                 screen_height / 2 - 30 - MeasureTextEx(font_play, play_message, (float)font_play.baseSize, 2).y / 2};
 
     game_title_pos = (Vector2){screen_width / 2 - MeasureTextEx(font_play, game_title, (float)font_play.baseSize + 40, 4).x / 2,
                                screen_height / 10 - MeasureTextEx(font_play, game_title, (float)font_play.baseSize + 40, 4).y / 2};
 
-    credentialButton_pos = (Vector2){screen_width / 2 - MeasureTextEx(font_play, credential_title, (float)font_play.baseSize + 20, 2).x / 2,
+    credentialButton_pos = (Vector2){screen_width / 2 - MeasureTextEx(font_play, credential_title, (float)font_play.baseSize + 10, 2).x / 2,
                                      screen_height / 2 + 60 - MeasureTextEx(font_play, credential_title, (float)font_play.baseSize, 2).y / 2};
 
     credentialButton_posRec = (Rectangle){credentialButton_pos.x - paddingX,
                                           credentialButton_pos.y - paddingY,
-                                          MeasureTextEx(font_play, credential_title, (float)font_play.baseSize + 20, 2).x + paddingX * 2,
-                                          MeasureTextEx(font_play, credential_title, (float)font_play.baseSize + 20, 2).y + paddingY * 2};
+                                          MeasureTextEx(font_play, credential_title, (float)font_play.baseSize + 10, 2).x + paddingX * 2,
+                                          MeasureTextEx(font_play, credential_title, (float)font_play.baseSize + 10, 2).y + paddingY * 2};
 
     play_button_posRec = (Rectangle){play_button_pos.x - paddingX,
                                      play_button_pos.y - paddingY,
-                                     MeasureTextEx(font_play, play_message, (float)font_play.baseSize + 20, 2).x + paddingX * 2,
-                                     MeasureTextEx(font_play, play_message, (float)font_play.baseSize + 20, 2).y + paddingY * 2};
+                                     MeasureTextEx(font_play, play_message, (float)font_play.baseSize + 10, 2).x + paddingX * 2,
+                                     MeasureTextEx(font_play, play_message, (float)font_play.baseSize + 10, 2).y + paddingY * 2};
 
     game_title_posRec = (Rectangle){game_title_pos.x - paddingX,
                                     game_title_pos.y - paddingY,
-                                    MeasureTextEx(font_play, game_title, (float)font_play.baseSize + 40, 4).x + paddingX * 4,
+                                    MeasureTextEx(font_play, game_title, (float)font_play.baseSize + 40, 4).x + paddingX * 2,
                                     MeasureTextEx(font_play, game_title, (float)font_play.baseSize + 40, 4).y / 2 + paddingY * 4};
 
     // LEADERBOARD button - sits right under the CREDENTIAL button
-    leaderboard_button_pos = (Vector2){screen_width / 2 - MeasureTextEx(font_play, leaderboard_button_message, (float)font_play.baseSize + 20, 2).x / 2,
-                                       credentialButton_posRec.y + credentialButton_posRec.height + 20};
+    leaderboard_button_pos = (Vector2){screen_width / 2 - MeasureTextEx(font_play, leaderboard_button_message, (float)font_play.baseSize + 10, 2).x / 2,
+                                       credentialButton_posRec.y + credentialButton_posRec.height + 30};
 
     leaderboard_button_posRec = (Rectangle){leaderboard_button_pos.x - paddingX,
                                             leaderboard_button_pos.y - paddingY,
-                                            MeasureTextEx(font_play, leaderboard_button_message, (float)font_play.baseSize + 20, 2).x + paddingX * 2,
-                                            MeasureTextEx(font_play, leaderboard_button_message, (float)font_play.baseSize + 20, 2).y + paddingY * 2};
+                                            MeasureTextEx(font_play, leaderboard_button_message, (float)font_play.baseSize + 10, 2).x + paddingX * 2,
+                                            MeasureTextEx(font_play, leaderboard_button_message, (float)font_play.baseSize + 10, 2).y + paddingY * 2};
 }
 
 // Layout for the standalone LEADERBOARD screen: a centered title and a
@@ -1337,7 +1337,7 @@ void load_credentials()
 
     supervisor_label_pos = (Vector2){
         screen_width / 2 - supervisor_label_size.x / 2,
-        credential_name2_pos.y + name2_size.y + line_gap * 3};
+        credential_name2_pos.y + name2_size.y + line_gap * 2};
 
     supervisor_name_pos = (Vector2){
         screen_width / 2 - supervisor_name_size.x / 2,
@@ -1603,8 +1603,6 @@ void load_data_total_window()
         playagain_size.y + padding_y * 2};
 }
 
-
-
 void start_gameplay()
 {
 
@@ -1633,10 +1631,10 @@ void start_gameplay()
             DrawRectangleRoundedLinesEx(leaderboard_button_posRec, 1.0f, 8, 2, BLACK);
         }
 
-        DrawTextEx(font_play, play_message, play_button_pos, (float)font_play.baseSize + 20, 2, BLUE);
-        DrawTextEx(font_play, game_title, game_title_pos, (float)font_play.baseSize + 40, 2, BLUE);
-        DrawTextEx(font_play, credential_title, credentialButton_pos, (float)font_play.baseSize + 20, 2, BLUE);
-        DrawTextEx(font_play, leaderboard_button_message, leaderboard_button_pos, (float)font_play.baseSize + 20, 2, BLUE);
+        DrawTextEx(font_play, play_message, play_button_pos, (float)font_play.baseSize + 10, 2, BLUE);
+        DrawTextEx(font_play, game_title, game_title_pos, (float)font_play.baseSize + 40, 4, BLUE);
+        DrawTextEx(font_play, credential_title, credentialButton_pos, (float)font_play.baseSize + 10, 2, BLUE);
+        DrawTextEx(font_play, leaderboard_button_message, leaderboard_button_pos, (float)font_play.baseSize + 10, 2, BLUE);
 
         if (CheckCollisionPointRec(mousepos, play_button_posRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
         {
@@ -1826,8 +1824,6 @@ void start_gameplay()
 
     case LEVEL_1:
 
-    
-
         mousepos = GetMousePosition();
         if (IsKeyPressed(KEY_SPACE))
         {
@@ -1871,7 +1867,7 @@ void start_gameplay()
         DrawBlackHole(blackholes_level1[1], blackholeAnimTime);
 
         // UpdateAndDrawFlames(flameEmitters1, flameEmitterCount1, GetFrameTime());
-                if (!gamePaused)
+        if (!gamePaused)
         {
             updateRocket(&rocket, wall_level1, wallCount1, redWalls_level1, !AllKeysCollected(keys_level1), NULL, 0);
             UpdateKeyPickups(keys_level1, rocket.pos);
@@ -1941,7 +1937,7 @@ void start_gameplay()
         break;
 
     case LEVEL_2:
-      mousepos = GetMousePosition();
+        mousepos = GetMousePosition();
         if (IsKeyPressed(KEY_SPACE))
         {
             gamePaused = !gamePaused;
@@ -1990,7 +1986,7 @@ void start_gameplay()
 
         // UpdateAndDrawFlames(flameEmitters2, flameEmitterCount2, GetFrameTime());
 
-               if (!gamePaused)
+        if (!gamePaused)
         {
             updateRocket(&rocket, wall_level2, wallCount2, redWalls_level2, !AllKeysCollected(keys_level2), meteors_level2, meteors_level2_size);
             UpdateKeyPickups(keys_level2, rocket.pos);
@@ -2061,7 +2057,7 @@ void start_gameplay()
         break;
 
     case LEVEL_3:
-      mousepos = GetMousePosition();
+        mousepos = GetMousePosition();
         if (IsKeyPressed(KEY_SPACE))
         {
             gamePaused = !gamePaused;
@@ -2110,7 +2106,7 @@ void start_gameplay()
 
         UpdateAndDrawFlames(flameEmitters3, flameEmitterCount3, GetFrameTime());
 
-                if (!gamePaused)
+        if (!gamePaused)
         {
             UpdateAndDrawFlames(flameEmitters3, flameEmitterCount3, GetFrameTime());
 
@@ -2188,7 +2184,7 @@ void start_gameplay()
         break;
 
     case LEVEL4:
-      mousepos = GetMousePosition();
+        mousepos = GetMousePosition();
         if (IsKeyPressed(KEY_SPACE))
         {
             gamePaused = !gamePaused;
@@ -2202,7 +2198,7 @@ void start_gameplay()
             teleportCooldown -= GetFrameTime();
         blackholeAnimTime += GetFrameTime();
 
-                if (!gamePaused)
+        if (!gamePaused)
         {
             updateSpaceShip(&alienShip1);
             updateSpaceShip(&alienShip2);
@@ -2238,7 +2234,7 @@ void start_gameplay()
         DrawBlackHole(blackholes_level4[0], blackholeAnimTime);
         DrawBlackHole(blackholes_level4[1], blackholeAnimTime);
 
-                if (!gamePaused)
+        if (!gamePaused)
         {
             UpdateAndDrawFlames(flameEmitters4, flameEmitterCount4, GetFrameTime());
 
