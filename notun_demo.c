@@ -1741,6 +1741,7 @@ void start_gameplay()
 
     case NAME_INPUT:
     {
+        mousepos = GetMousePosition();
 
         DrawTexturePro(space_background,
                        (Rectangle){0, 0, space_background.width, space_background.height},
@@ -1754,6 +1755,12 @@ void start_gameplay()
         DrawRectangleRounded(name_input_box, 0.3f, 8, (Color){10, 15, 40, 255});
         DrawRectangleRoundedLinesEx(name_input_box, 0.3f, 8, 2, BLACK);
         DrawTextEx(font_play, playerName, name_input_text_pos, font_size, spacing, GOLD);
+
+        {
+            Color backBtnColor = GetButtonColor(credential_back_posRec, mousepos, Button_color);
+            DrawRectangleRounded(credential_back_posRec, 1.0f, 8, backBtnColor);
+        }
+        DrawTextEx(font_play, back_message, credential_back_pos, (float)font_play.baseSize + 30, 2, BLUE);
 
         int key = GetCharPressed();
         while (key > 0)
@@ -1772,6 +1779,14 @@ void start_gameplay()
         {
             nameLetterCount--;
             playerName[nameLetterCount] = '\0';
+        }
+
+        if (CheckCollisionPointRec(mousepos, credential_back_posRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+        {
+            PlaySound(clicksound);
+            playerName[0] = '\0';
+            nameLetterCount = 0;
+            level = ZERO_WINDOW;
         }
 
         if (IsKeyPressed(KEY_ENTER) && nameLetterCount > 0)
