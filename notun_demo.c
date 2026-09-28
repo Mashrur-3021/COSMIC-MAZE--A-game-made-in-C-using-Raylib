@@ -576,6 +576,7 @@ void HandlePauseMenu(void)
         PlaySound(clicksound);
         gamePaused = false;
         timerRunning = true;
+        ResumeMusicStream(backgrnd_music);
     }
 
     if (CheckCollisionPointRec(mousepos, exit_game_button_posRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
@@ -583,6 +584,7 @@ void HandlePauseMenu(void)
         PlaySound(clicksound);
         gamePaused = false;
         timerRunning = false;
+        ResumeMusicStream(backgrnd_music);
         level = ZERO_WINDOW;
     }
 }
@@ -1867,6 +1869,11 @@ void start_gameplay()
             gamePaused = !gamePaused;
             timerRunning = !gamePaused;
             PlaySound(clicksound);
+
+            if (gamePaused)
+                PauseMusicStream(backgrnd_music);
+            else
+                ResumeMusicStream(backgrnd_music);
         }
 
         if (timerRunning)
@@ -1980,6 +1987,11 @@ void start_gameplay()
             gamePaused = !gamePaused;
             timerRunning = !gamePaused;
             PlaySound(clicksound);
+
+            if (gamePaused)
+                PauseMusicStream(backgrnd_music);
+            else
+                ResumeMusicStream(backgrnd_music);
         }
 
         if (timerRunning)
@@ -2100,6 +2112,11 @@ void start_gameplay()
             gamePaused = !gamePaused;
             timerRunning = !gamePaused;
             PlaySound(clicksound);
+
+            if (gamePaused)
+                PauseMusicStream(backgrnd_music);
+            else
+                ResumeMusicStream(backgrnd_music);
         }
 
         if (timerRunning)
@@ -2227,6 +2244,11 @@ void start_gameplay()
             gamePaused = !gamePaused;
             timerRunning = !gamePaused;
             PlaySound(clicksound);
+
+            if (gamePaused)
+                PauseMusicStream(backgrnd_music);
+            else
+                ResumeMusicStream(backgrnd_music);
         }
 
         if (timerRunning)
