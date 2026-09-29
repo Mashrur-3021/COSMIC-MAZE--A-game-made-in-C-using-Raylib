@@ -575,7 +575,7 @@ void HandlePauseMenu(void)
     DrawRectangleRounded(exit_game_button_posRec, 1.0f, 8, exitBtnColor);
     DrawRectangleRoundedLinesEx(exit_game_button_posRec, 1.0f, 8, 2, BLACK);
     DrawTextEx(font_play, exit_game_button_message, exit_game_button_pos, (float)font_play.baseSize + 10, 2, RED);
-       
+
     Color musicBtnColor = GetButtonColor(music_button_posRec, mousepos, Button_color);
     char *musicText = musicOn ? music_on_message : music_off_message;
     Vector2 musicSize = MeasureTextEx(font_play, musicText, (float)font_play.baseSize + 10, 2);
@@ -586,11 +586,11 @@ void HandlePauseMenu(void)
     DrawRectangleRounded(music_button_posRec, 1.0f, 8, musicBtnColor);
     DrawRectangleRoundedLinesEx(music_button_posRec, 1.0f, 8, 2, BLACK);
     DrawTextEx(font_play, musicText, music_button_pos, (float)font_play.baseSize + 10, 2, musicOn ? GREEN : RED);
-    
-        if (CheckCollisionPointRec(mousepos, music_button_posRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+
+    if (CheckCollisionPointRec(mousepos, music_button_posRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
     {
         PlaySound(clicksound);
-        musicOn = !musicOn; 
+        musicOn = !musicOn;
 
         if (musicOn)
             SetMusicVolume(backgrnd_music, 1.0f);
@@ -1282,13 +1282,13 @@ void load_data_0()
 
     font_play = LoadFont("D:/Maze-explorer/Fonts/ALIEN CYBERNETICS.ttf");
     play_button_pos = (Vector2){screen_width / 2 - MeasureTextEx(font_play, play_message, (float)font_play.baseSize + 10, 2).x / 2,
-                                screen_height / 2 - 30 - MeasureTextEx(font_play, play_message, (float)font_play.baseSize, 2).y / 2};
+                                screen_height / 2 - 30 - 90 - MeasureTextEx(font_play, play_message, (float)font_play.baseSize, 2).y / 2};
 
     game_title_pos = (Vector2){screen_width / 2 - MeasureTextEx(font_play, game_title, (float)font_play.baseSize + 40, 4).x / 2,
                                screen_height / 10 - MeasureTextEx(font_play, game_title, (float)font_play.baseSize + 40, 4).y / 2};
 
     credentialButton_pos = (Vector2){screen_width / 2 - MeasureTextEx(font_play, credential_title, (float)font_play.baseSize + 10, 2).x / 2,
-                                     screen_height / 2 + 60 - MeasureTextEx(font_play, credential_title, (float)font_play.baseSize, 2).y / 2};
+                                     screen_height / 2 + 60 - 90 - MeasureTextEx(font_play, credential_title, (float)font_play.baseSize, 2).y / 2};
 
     credentialButton_posRec = (Rectangle){credentialButton_pos.x - paddingX,
                                           credentialButton_pos.y - paddingY,
@@ -1427,7 +1427,6 @@ void load_data_pause_window()
     float paddingX = 30;
     float paddingY = 15;
 
-   
     Vector2 resume_size = MeasureTextEx(font_play, resume_button_message, (float)font_play.baseSize + 10, 2);
     resume_button_pos = (Vector2){
         screen_width / 2 - resume_size.x / 2,
@@ -1438,7 +1437,6 @@ void load_data_pause_window()
         resume_size.x + paddingX * 2,
         resume_size.y + paddingY * 2};
 
-    
     Vector2 music_size = MeasureTextEx(font_play, music_off_message, (float)font_play.baseSize + 10, 2);
     music_button_posRec = (Rectangle){
         screen_width / 2 - music_size.x / 2 - paddingX,
@@ -1446,7 +1444,6 @@ void load_data_pause_window()
         music_size.x + paddingX * 2,
         music_size.y + paddingY * 2};
 
-    
     Vector2 exit_size = MeasureTextEx(font_play, exit_game_button_message, (float)font_play.baseSize + 10, 2);
     exit_game_button_pos = (Vector2){
         screen_width / 2 - exit_size.x / 2,
