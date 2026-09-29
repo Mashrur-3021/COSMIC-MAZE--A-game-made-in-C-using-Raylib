@@ -556,6 +556,8 @@ void DrawHUD(int levelNumber, int keysRemaining)
 // sideways with a smooth sine wave (not random jitter), tapering and
 // changing color as it climbs - which reads as a flame lick instead of
 // scattered sparks.
+
+float Master_volume_value = 0.5;
 void HandlePauseMenu(void)
 {
     DrawRectangle(0, 0, screen_width, screen_height, Fade(BLACK, 0.65f));
@@ -593,9 +595,16 @@ void HandlePauseMenu(void)
         musicOn = !musicOn;
 
         if (musicOn)
-            SetMusicVolume(backgrnd_music, 1.0f);
+        {
+            Master_volume_value = 0.5f;
+        }
         else
-            SetMusicVolume(backgrnd_music, 0.0f);
+        {
+            Master_volume_value = 0.0f;
+        }
+
+        SetMasterVolume(Master_volume_value);
+        SetMusicVolume(backgrnd_music, musicOn ? 1.0f : 0.0f);
     }
 
     if (CheckCollisionPointRec(mousepos, resume_button_posRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
@@ -2476,7 +2485,7 @@ int main()
 {
     InitWindow(screen_width, screen_height, "COSMIC MAZE");
     InitAudioDevice();
-    SetMasterVolume(0.5f);
+    SetMasterVolume(Master_volume_value);
     SetTargetFPS(60);
     load_data_0();
     load_data_pause_window();
