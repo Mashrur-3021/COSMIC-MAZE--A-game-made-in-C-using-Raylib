@@ -169,6 +169,9 @@ void start_gameplay()
                        (Rectangle){0, 0, screen_width, screen_height},
                        (Vector2){0, 0}, 0.0f, WHITE);
 
+        DrawRectangleRounded(credential_box, 0.1f, 8, (Color){10, 15, 40, 230});
+        DrawRectangleRoundedLinesEx(credential_box, 0.1f, 8, 2, GOLD);
+
         DrawTextEx(font_play, credential_name1, credential_name1_pos, (float)font_play.baseSize + 10, 2, GOLD);
         DrawTextEx(font_play, credential_name2, credential_name2_pos, (float)font_play.baseSize + 10, 2, GOLD);
         DrawTextEx(font_play, supervisor_label, supervisor_label_pos, (float)font_play.baseSize + 10, 2, GOLD);

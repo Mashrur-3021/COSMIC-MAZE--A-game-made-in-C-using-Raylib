@@ -5,13 +5,13 @@ void load_data_0()
 
     font_play = LoadFont("D:/Maze-explorer/Fonts/ALIEN CYBERNETICS.ttf");
     play_button_pos = (Vector2){screen_width / 2 - MeasureTextEx(font_play, play_message, (float)font_play.baseSize + 10, 2).x / 2,
-                                screen_height / 2 - 30 - MeasureTextEx(font_play, play_message, (float)font_play.baseSize, 2).y / 2};
+                                screen_height / 2 - 30 - 90 - MeasureTextEx(font_play, play_message, (float)font_play.baseSize, 2).y / 2};
 
     game_title_pos = (Vector2){screen_width / 2 - MeasureTextEx(font_play, game_title, (float)font_play.baseSize + 40, 4).x / 2,
                                screen_height / 10 - MeasureTextEx(font_play, game_title, (float)font_play.baseSize + 40, 4).y / 2};
 
     credentialButton_pos = (Vector2){screen_width / 2 - MeasureTextEx(font_play, credential_title, (float)font_play.baseSize + 10, 2).x / 2,
-                                     screen_height / 2 + 60 - MeasureTextEx(font_play, credential_title, (float)font_play.baseSize, 2).y / 2};
+                                     screen_height / 2 + 60 - 90 - MeasureTextEx(font_play, credential_title, (float)font_play.baseSize, 2).y / 2};
 
     credentialButton_posRec = (Rectangle){credentialButton_pos.x - paddingX,
                                           credentialButton_pos.y - paddingY,
@@ -97,10 +97,14 @@ void load_data_howto_window()
 
 void load_credentials()
 {
-    float line_gap = 20;
 
-    Vector2 name1_size = MeasureTextEx(font_play, credential_name1, font_size, spacing);
-    Vector2 name2_size = MeasureTextEx(font_play, credential_name2, font_size, spacing);
+    float line_gap = 20;
+    float credSize = (float)font_play.baseSize + 10;
+
+    Vector2 name1_size = MeasureTextEx(font_play, credential_name1, credSize, 2);
+    Vector2 name2_size = MeasureTextEx(font_play, credential_name2, credSize, 2);
+    Vector2 supervisor_label_size = MeasureTextEx(font_play, supervisor_label, credSize, 2);
+    Vector2 supervisor_name_size = MeasureTextEx(font_play, supervisor_name, credSize, 2);
 
     float names_total_height = name1_size.y + name2_size.y + line_gap;
 
@@ -111,6 +115,14 @@ void load_credentials()
     credential_name2_pos = (Vector2){
         screen_width / 2 - name2_size.x / 2,
         credential_name1_pos.y + name1_size.y + line_gap};
+
+    supervisor_label_pos = (Vector2){
+        screen_width / 2 - supervisor_label_size.x / 2,
+        credential_name2_pos.y + name2_size.y + line_gap * 2};
+
+    supervisor_name_pos = (Vector2){
+        screen_width / 2 - supervisor_name_size.x / 2,
+        supervisor_label_pos.y + supervisor_label_size.y + line_gap};
 
     credential_back_pos = (Vector2){30, 30};
 
@@ -125,16 +137,23 @@ void load_credentials()
         back_size.x + paddingX * 2,
         back_size.y + paddingY * 2};
 
-    Vector2 supervisor_label_size = MeasureTextEx(font_play, supervisor_label, font_size, spacing);
-    Vector2 supervisor_name_size = MeasureTextEx(font_play, supervisor_name, font_size, spacing);
+    float boxPadX = 60;
+    float boxPadY = 40;
 
-    supervisor_label_pos = (Vector2){
-        screen_width / 2 - supervisor_label_size.x / 2,
-        credential_name2_pos.y + name2_size.y + line_gap * 2};
+    float textLeft = fminf(fminf(credential_name1_pos.x, credential_name2_pos.x),
+                           fminf(supervisor_label_pos.x, supervisor_name_pos.x));
 
-    supervisor_name_pos = (Vector2){
-        screen_width / 2 - supervisor_name_size.x / 2,
-        supervisor_label_pos.y + supervisor_label_size.y + line_gap};
+    float textRight = fmaxf(fmaxf(credential_name1_pos.x + name1_size.x, credential_name2_pos.x + name2_size.x),
+                            fmaxf(supervisor_label_pos.x + supervisor_label_size.x, supervisor_name_pos.x + supervisor_name_size.x));
+
+    float textTop = credential_name1_pos.y;
+    float textBottom = supervisor_name_pos.y + supervisor_name_size.y;
+
+    credential_box = (Rectangle){
+        textLeft - boxPadX,
+        textTop - boxPadY,
+        (textRight - textLeft) + boxPadX * 2,
+        (textBottom - textTop) + boxPadY * 2};
 }
 
 void load_data_name_window()

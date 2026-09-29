@@ -371,6 +371,7 @@ Vector2 resume_button_pos;
 Rectangle resume_button_posRec;
 Vector2 exit_game_button_pos;
 Rectangle exit_game_button_posRec;
+Rectangle credential_box;
 
 static Color GetButtonColor(Rectangle rect, Vector2 mouse, Color baseColor)
 {
@@ -1388,7 +1389,7 @@ int main()
     load_data_transition_window3();
     load_data_total_window();
 
-    backgrnd_music = LoadMusicStream("D:/Maze-explorer/Audio/background.mp3");
+    backgrnd_music = LoadMusicStream("D:/Maze-explorer/Audio/background.ogg");
     clicksound = LoadSound("D:/Maze-explorer/Audio/click.wav");
     crashsound = LoadSound("D:/Maze-explorer/Audio/crash.wav");
     level_up_sound = LoadSound("D:/Maze-explorer/Audio/level_up.mp3");
@@ -1399,6 +1400,8 @@ int main()
     {
 
         UpdateMusicStream(backgrnd_music);
+        if (GetMusicTimePlayed(backgrnd_music) >= GetMusicTimeLength(backgrnd_music) - 1.0f)
+            SeekMusicStream(backgrnd_music, 0.0f);
 
         BeginDrawing();
         ClearBackground(DARKBLUE);
