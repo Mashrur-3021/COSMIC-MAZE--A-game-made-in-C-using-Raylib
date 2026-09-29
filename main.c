@@ -69,6 +69,8 @@ typedef enum
     LEVEL4,
     TR_WIN_4,
     TOTAL_WINDOW,
+    LEADERBOARD_WINDOW,
+    HOW_TO_PLAY_WINDOW,
 } WINDOW_NAME;
 
 typedef enum
@@ -228,14 +230,15 @@ char *credential_name1 = "Mujahidul Islam Nafi - 2505095";
 char *credential_name2 = "Md. Mashrur Hasan - 2505115";
 char *back_message = "BACK";
 char rules_line1[100];
-char *rules_line2 = "Your space exploration starts here!";
-char *rules_line3 = "You must travel across four planets.";
-char *rules_line4 = "To complete each level, collect four keys";
-char *rules_line5 = "and navigate the mysterious maze.";
-char *rules_line6 = "Avoid crashing into meteors and walls.";
-char *rules_line7 = "If you collide with an alien spaceship, you will";
-char *rules_line8 = "be sent back to the starting point.";
-char *rules_line9 = "Be careful, and good luck on your journey!";
+char *rules_line2 = "You step into the uncharted depths of a cosmic maze.";
+char *rules_line3 = "Across four forgotten worlds lie four celestial keys.";
+char *rules_line4 = "Shatter the dark void to claim your ultimate freedom.";
+char *rules_line5 = "Navigate abyssal corridors as meteor storms rage on.";
+char *rules_line6 = "Beware the alien watchers lurking silently in shadows.";
+char *rules_line7 = "Touching temporal fields will fracture time itself,";
+char *rules_line8 = "casting your ship back to where your journey started.";
+char *rules_line9 = "Are you prepared to face the mysteries of the dark?";
+
 char *start_button_message = "START";
 
 char *supervisor_label = "SUPERVISOR-";
@@ -274,10 +277,48 @@ Rectangle credential_back_posRec;
 Vector2 credentialButton_pos;
 Rectangle credentialButton_posRec;
 
+// LEADERBOARD button (main menu) + LEADERBOARD screen layout
+char *leaderboard_button_message = "LEADERBOARD";
+Vector2 leaderboard_button_pos;
+Rectangle leaderboard_button_posRec;
+
+char *leaderboard_title = "LEADERBOARD";
+Vector2 leaderboard_title_pos;
+
+char *leaderboard_back_message = "BACK";
+Vector2 leaderboard_back_pos;
+Rectangle leaderboard_back_posRec;
+
+// HOW TO PLAY
+char *howto_button_message = "HOW TO PLAY";
+Vector2 howto_button_pos;
+Rectangle howto_button_posRec;
+
+char *howto_title = "HOW TO PLAY";
+Vector2 howto_title_pos;
+Vector2 howto_back_pos;
+Rectangle howto_back_posRec;
+Rectangle howto_box;
+
+#define HOWTO_LINE_COUNT 8
+char *howto_lines[HOWTO_LINE_COUNT] = {
+    "1. Move the rocket with the ARROW keys or W, A, S, D.",
+    "2. Press SPACEBAR to pause the game. Press it again to resume.",
+    "3. First, collect all 4 keys in the level.",
+    "4. After the 4th key, the red walls around the planet will open.",
+    "5. Avoid crashing into meteors and walls.",
+    "6. If you touch an alien spaceship, you restart from the beginning.",
+    "7. Black holes come in pairs. Enter one to teleport to the other.",
+    "8. Land on the planet to complete the level."};
+Vector2 howto_line_pos[HOWTO_LINE_COUNT];
+
 Vector2 name_label_pos;
 Vector2 name_input_text_pos;
 Rectangle name_label_box;
 Rectangle name_input_box;
+
+Vector2 main_exit_button_pos;
+Rectangle main_exit_button_posRec;
 
 // audio
 Music backgrnd_music;
@@ -302,17 +343,34 @@ Vector2 score_title_pos;
 
 Vector2 level_label_pos[LEVEL_COUNT];
 Vector2 level_time_pos[LEVEL_COUNT];
+Vector2 avg_time_pos; // position of the "Average Time" row on the score screen
 
 char *exit_message = "EXIT";
 char *play_again_message = "PLAY AGAIN";
 
 Vector2 exit_button_pos;
 Rectangle exit_button_posRec;
+bool musicOn = true;
+char *music_on_message = "MUSIC: ON";
+char *music_off_message = "MUSIC: OFF";
+Vector2 music_button_pos;
+Rectangle music_button_posRec;
 
 Vector2 playagain_button_pos;
 Rectangle playagain_button_posRec;
 
 bool exitGameRequested = false;
+bool gamePaused = false;
+char *pause_message = "PAUSED";
+char *resume_button_message = "RESUME";
+char *exit_game_button_message = "EXIT GAME";
+static int level = 0;
+Rectangle pause_box;
+Vector2 pause_message_pos;
+Vector2 resume_button_pos;
+Rectangle resume_button_posRec;
+Vector2 exit_game_button_pos;
+Rectangle exit_game_button_posRec;
 
 static Color GetButtonColor(Rectangle rect, Vector2 mouse, Color baseColor)
 {
@@ -361,6 +419,87 @@ void SaveLeaderboard(void)
         fprintf(f, "%.2f\n", bestLevelTimes[i]);
     fclose(f);
 }
+
+// ===================== PLAYER LEADERBOARD (AVG TIME ACROSS ALL LEVELS) =====================
+// Every time a player finishes all 4 levels, their name and the average of
+// their 4 level times (their "score" - lower is better) is appended to a
+// separate file. The main menu's LEADERBOARD button reads that whole file
+// back in, sorts it fastest-first, and shows it as a simple scoreboard.
+
+typedef struct
+{
+    char name[MAX_NAME_LEN + 1];
+    float avgTime;
+} PlayerScore;
+
+#define MAX_LEADERBOARD_ENTRIES 200
+#define LEADERBOARD_DISPLAY_COUNT 10 // how many rows to show on screen at once
+
+const char *playersLeaderboardFilePath = "D:/Maze-explorer/players_leaderboard.txt";
+
+PlayerScore playerScores[MAX_LEADERBOARD_ENTRIES];
+int playerScoreCount = 0;
+
+float avgLevelTime = 0.0f; // this run's average completion time across all 4 levels
+bool scoreSaved = false;   // guards against writing the same completed run twice
+
+// Averages this run's 4 (already-completed) level times into a single score.
+float ComputeAverageTime(void)
+{
+    float sum = 0.0f;
+    for (int i = 0; i < LEVEL_COUNT; i++)
+        sum += levelTimes[i];
+    return sum / LEVEL_COUNT;
+}
+
+// Appends one "<name> <avgTime>" line to the players leaderboard file. This
+// is what makes a completed run show up on the LEADERBOARD screen.
+void SavePlayerScore(const char *name, float avgTime)
+{
+    FILE *f = fopen(playersLeaderboardFilePath, "a");
+    if (f == NULL)
+        return;
+    fprintf(f, "%s %.2f\n", name, avgTime);
+    fclose(f);
+}
+
+// Reads every "<name> <avgTime>" line from disk into playerScores[], then
+// sorts them ascending by avgTime, so the fastest average time (best score)
+// ends up first.
+void LoadPlayerLeaderboard(void)
+{
+    playerScoreCount = 0;
+    FILE *f = fopen(playersLeaderboardFilePath, "r");
+    if (f == NULL)
+        return;
+
+    char nameBuf[MAX_NAME_LEN + 1];
+    float t;
+    while (playerScoreCount < MAX_LEADERBOARD_ENTRIES && fscanf(f, "%16s %f", nameBuf, &t) == 2)
+    {
+        strncpy(playerScores[playerScoreCount].name, nameBuf, MAX_NAME_LEN);
+        playerScores[playerScoreCount].name[MAX_NAME_LEN] = '\0';
+        playerScores[playerScoreCount].avgTime = t;
+        playerScoreCount++;
+    }
+    fclose(f);
+
+    // simple ascending bubble sort - the file only ever holds a handful of
+    // entries so this is more than fast enough.
+    for (int i = 0; i < playerScoreCount - 1; i++)
+    {
+        for (int j = 0; j < playerScoreCount - 1 - i; j++)
+        {
+            if (playerScores[j].avgTime > playerScores[j + 1].avgTime)
+            {
+                PlayerScore tmp = playerScores[j];
+                playerScores[j] = playerScores[j + 1];
+                playerScores[j + 1] = tmp;
+            }
+        }
+    }
+}
+// =================== END PLAYER LEADERBOARD (AVG TIME ACROSS ALL LEVELS) ===================
 
 // Starts (or restarts) the stopwatch for whichever level is about to begin.
 void StartLevelTimer(void)
@@ -440,6 +579,74 @@ void DrawHUD(int levelNumber, int keysRemaining)
 // sideways with a smooth sine wave (not random jitter), tapering and
 // changing color as it climbs - which reads as a flame lick instead of
 // scattered sparks.
+
+float Master_volume_value = 0.5;
+void HandlePauseMenu(void)
+{
+    DrawRectangle(0, 0, screen_width, screen_height, Fade(BLACK, 0.65f));
+
+    DrawRectangleRounded(pause_box, 0.1f, 8, Fade((Color){10, 15, 40, 255}, 0.95f));
+    DrawRectangleRoundedLinesEx(pause_box, 0.1f, 8, 2, GOLD);
+
+    DrawTextEx(font_play, pause_message, pause_message_pos, (float)font_play.baseSize + 20, 2, GOLD);
+
+    Color resumeBtnColor = GetButtonColor(resume_button_posRec, mousepos, Button_color);
+    Color exitBtnColor = GetButtonColor(exit_game_button_posRec, mousepos, Button_color);
+
+    DrawRectangleRounded(resume_button_posRec, 1.0f, 8, resumeBtnColor);
+    DrawRectangleRoundedLinesEx(resume_button_posRec, 1.0f, 8, 2, BLACK);
+    DrawTextEx(font_play, resume_button_message, resume_button_pos, (float)font_play.baseSize + 10, 2, GREEN);
+
+    DrawRectangleRounded(exit_game_button_posRec, 1.0f, 8, exitBtnColor);
+    DrawRectangleRoundedLinesEx(exit_game_button_posRec, 1.0f, 8, 2, BLACK);
+    DrawTextEx(font_play, exit_game_button_message, exit_game_button_pos, (float)font_play.baseSize + 10, 2, RED);
+
+    Color musicBtnColor = GetButtonColor(music_button_posRec, mousepos, Button_color);
+    char *musicText = musicOn ? music_on_message : music_off_message;
+    Vector2 musicSize = MeasureTextEx(font_play, musicText, (float)font_play.baseSize + 10, 2);
+    music_button_pos = (Vector2){
+        music_button_posRec.x + music_button_posRec.width / 2 - musicSize.x / 2,
+        music_button_posRec.y + music_button_posRec.height / 2 - musicSize.y / 2};
+
+    DrawRectangleRounded(music_button_posRec, 1.0f, 8, musicBtnColor);
+    DrawRectangleRoundedLinesEx(music_button_posRec, 1.0f, 8, 2, BLACK);
+    DrawTextEx(font_play, musicText, music_button_pos, (float)font_play.baseSize + 10, 2, musicOn ? GREEN : RED);
+
+    if (CheckCollisionPointRec(mousepos, music_button_posRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+    {
+        PlaySound(clicksound);
+        musicOn = !musicOn;
+
+        if (musicOn)
+        {
+            Master_volume_value = 0.5f;
+        }
+        else
+        {
+            Master_volume_value = 0.0f;
+        }
+
+        SetMasterVolume(Master_volume_value);
+        SetMusicVolume(backgrnd_music, musicOn ? 1.0f : 0.0f);
+    }
+
+    if (CheckCollisionPointRec(mousepos, resume_button_posRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+    {
+        PlaySound(clicksound);
+        gamePaused = false;
+        timerRunning = true;
+        ResumeMusicStream(backgrnd_music);
+    }
+
+    if (CheckCollisionPointRec(mousepos, exit_game_button_posRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+    {
+        PlaySound(clicksound);
+        gamePaused = false;
+        timerRunning = false;
+        ResumeMusicStream(backgrnd_music);
+        level = ZERO_WINDOW;
+    }
+}
 
 void InitFireParticles(void)
 {
@@ -1100,930 +1307,20 @@ void updateRocket(Player *rocket, Wall wall_level[], int wall_count, Wall redWal
     }
 }
 
-void load_data_0()
-{
-    float paddingX = 30;
-    float paddingY = 15;
+#include "Load-Data.h"
+#include "Start_gameplay.h"
 
-    font_play = LoadFont("D:/Raylib project/Fonts/ALIEN CYBERNETICS.ttf");
-    play_button_pos = (Vector2){screen_width / 2 - MeasureTextEx(font_play, play_message, (float)font_play.baseSize + 20, 2).x / 2,
-                                screen_height / 2 - 30 - MeasureTextEx(font_play, play_message, (float)font_play.baseSize, 2).y / 2};
-
-    game_title_pos = (Vector2){screen_width / 2 - MeasureTextEx(font_play, game_title, (float)font_play.baseSize + 40, 4).x / 2,
-                               screen_height / 10 - MeasureTextEx(font_play, game_title, (float)font_play.baseSize + 40, 4).y / 2};
-
-    credentialButton_pos = (Vector2){screen_width / 2 - MeasureTextEx(font_play, credential_title, (float)font_play.baseSize + 20, 2).x / 2,
-                                     screen_height / 2 + 60 - MeasureTextEx(font_play, credential_title, (float)font_play.baseSize, 2).y / 2};
-
-    credentialButton_posRec = (Rectangle){credentialButton_pos.x - paddingX,
-                                          credentialButton_pos.y - paddingY,
-                                          MeasureTextEx(font_play, credential_title, (float)font_play.baseSize + 20, 2).x + paddingX * 2,
-                                          MeasureTextEx(font_play, credential_title, (float)font_play.baseSize + 20, 2).y + paddingY * 2};
-
-    play_button_posRec = (Rectangle){play_button_pos.x - paddingX,
-                                     play_button_pos.y - paddingY,
-                                     MeasureTextEx(font_play, play_message, (float)font_play.baseSize + 20, 2).x + paddingX * 2,
-                                     MeasureTextEx(font_play, play_message, (float)font_play.baseSize + 20, 2).y + paddingY * 2};
-
-    game_title_posRec = (Rectangle){game_title_pos.x - paddingX,
-                                    game_title_pos.y - paddingY,
-                                    MeasureTextEx(font_play, game_title, (float)font_play.baseSize + 40, 4).x + paddingX * 4,
-                                    MeasureTextEx(font_play, game_title, (float)font_play.baseSize + 40, 4).y / 2 + paddingY * 4};
-}
-
-void load_credentials()
-{
-    float line_gap = 20;
-
-    Vector2 name1_size = MeasureTextEx(font_play, credential_name1, font_size, spacing);
-    Vector2 name2_size = MeasureTextEx(font_play, credential_name2, font_size, spacing);
-
-    float names_total_height = name1_size.y + name2_size.y + line_gap;
-
-    credential_name1_pos = (Vector2){
-        screen_width / 2 - name1_size.x / 2,
-        screen_height / 2 - names_total_height / 2};
-
-    credential_name2_pos = (Vector2){
-        screen_width / 2 - name2_size.x / 2,
-        credential_name1_pos.y + name1_size.y + line_gap};
-
-    credential_back_pos = (Vector2){30, 30};
-
-    Vector2 back_size = MeasureTextEx(font_play, back_message, (float)font_play.baseSize + 30, 2);
-
-    float paddingX = 20;
-    float paddingY = 15;
-
-    credential_back_posRec = (Rectangle){
-        credential_back_pos.x - paddingX,
-        credential_back_pos.y - paddingY,
-        back_size.x + paddingX * 2,
-        back_size.y + paddingY * 2};
-
-    Vector2 supervisor_label_size = MeasureTextEx(font_play, supervisor_label, font_size, spacing);
-    Vector2 supervisor_name_size = MeasureTextEx(font_play, supervisor_name, font_size, spacing);
-
-    supervisor_label_pos = (Vector2){
-        screen_width / 2 - supervisor_label_size.x / 2,
-        credential_name2_pos.y + name2_size.y + line_gap * 3};
-
-    supervisor_name_pos = (Vector2){
-        screen_width / 2 - supervisor_name_size.x / 2,
-        supervisor_label_pos.y + supervisor_label_size.y + line_gap};
-}
-
-void load_data_name_window()
-{
-    float boxHeight = 60;
-    float labelBoxWidth = 120;
-    float inputBoxWidth = 300;
-    float gap = 10;
-
-    float totalWidth = labelBoxWidth + gap + inputBoxWidth;
-    float startX = screen_width / 2 - totalWidth / 2;
-    float boxY = screen_height / 2 - boxHeight / 2;
-
-    name_label_box = (Rectangle){startX, boxY, labelBoxWidth, boxHeight};
-    name_input_box = (Rectangle){startX + labelBoxWidth + gap, boxY, inputBoxWidth, boxHeight};
-
-    Vector2 label_size = MeasureTextEx(font_play, name_label, font_size, spacing);
-    name_label_pos = (Vector2){
-        name_label_box.x + name_label_box.width / 2 - label_size.x / 2,
-        name_label_box.y + name_label_box.height / 2 - label_size.y / 2};
-
-    name_input_text_pos = (Vector2){
-        name_input_box.x + 15,
-        name_input_box.y + name_input_box.height / 2 - font_size / 2};
-}
-void load_data_rules_window()
-{
-    float box_width = 900;
-    float box_height = 500;
-
-    rules_box = (Rectangle){
-        screen_width / 2 - box_width / 2,
-        screen_height / 2 - box_height / 2 - 30,
-        box_width,
-        box_height};
-
-    float line_gap = 34;
-    float start_y = rules_box.y + 40;
-
-    for (int i = 0; i < 9; i++)
-    {
-        rules_line_pos[i] = (Vector2){
-            rules_box.x + 30,
-            start_y + i * line_gap};
-    }
-
-    Vector2 start_size = MeasureTextEx(font_play, start_button_message, (float)font_play.baseSize + 20, 2);
-    start_button_pos = (Vector2){
-        screen_width / 2 - start_size.x / 2,
-        rules_box.y + box_height + 40};
-
-    float paddingX = 30;
-    float paddingY = 15;
-    start_button_posRec = (Rectangle){
-        start_button_pos.x - paddingX,
-        start_button_pos.y - paddingY,
-        start_size.x + paddingX * 2,
-        start_size.y + paddingY * 2};
-}
-
-void load_data_1()
-{
-    space_background = LoadTexture("D:/Maze-explorer/Background/2.png");
-    space_background2 = LoadTexture("D:/Maze-explorer/Background/3.png");
-    space_background3 = LoadTexture("D:/Maze-explorer/Background/4.png");
-    space_background4 = LoadTexture("D:/Maze-explorer/Background/5.png");
-    space_background5 = LoadTexture("D:/Maze-explorer/Background/6.png");
-    planet = LoadTexture("D:/Maze-explorer/Planets/planet.png");
-    meteor = LoadTexture("D:/Maze-explorer/Meteor/1.png");
-    alien_spaceship = LoadTexture("D:/Maze-explorer/Alien-spaceship/1.png");
-}
-
-void load_data_transition_window()
-{
-    float padding_x = 50;
-    float padding_y = 30;
-    float line_gap = 20;
-
-    Vector2 msg1_size = MeasureTextEx(font_play, transition_msg1, font_size, spacing);
-    Vector2 msg2_size = MeasureTextEx(font_play, transition_msg2, font_size, spacing);
-
-    float text_width = (msg1_size.x > msg2_size.x) ? msg1_size.x : msg2_size.x;
-
-    float box_width = text_width + padding_x * 2;
-    float box_height = msg1_size.y + msg2_size.y + line_gap + padding_y * 2;
-
-    message_box = (Rectangle){
-        screen_width / 2 - box_width / 2,
-        screen_height / 2 - box_height / 2,
-        box_width,
-        box_height};
-
-    message1_pos = (Vector2){
-        screen_width / 2 - msg1_size.x / 2,
-        message_box.y + padding_y};
-
-    message2_pos = (Vector2){
-        screen_width / 2 - msg2_size.x / 2,
-        message_box.y + padding_y + msg1_size.y + line_gap};
-}
-
-void load_data_transition_window2()
-{
-    float padding_x = 50;
-    float padding_y = 30;
-    float line_gap = 20;
-
-    Vector2 msg1_size = MeasureTextEx(font_play, transition2_msg1, font_size, spacing);
-    Vector2 msg2_size = MeasureTextEx(font_play, transition2_msg2, font_size, spacing);
-
-    float text_width = (msg1_size.x > msg2_size.x) ? msg1_size.x : msg2_size.x;
-
-    float box_width = text_width + padding_x * 2;
-    float box_height = msg1_size.y + msg2_size.y + line_gap + padding_y * 2;
-
-    message_box2 = (Rectangle){
-        screen_width / 2 - box_width / 2,
-        screen_height / 2 - box_height / 2,
-        box_width,
-        box_height};
-
-    message3_pos = (Vector2){
-        screen_width / 2 - msg1_size.x / 2,
-        message_box2.y + padding_y};
-
-    message4_pos = (Vector2){
-        screen_width / 2 - msg2_size.x / 2,
-        message_box2.y + padding_y + msg1_size.y + line_gap};
-}
-
-void load_data_transition_window3()
-{
-    float padding_x = 50;
-    float padding_y = 30;
-    float line_gap = 20;
-
-    Vector2 msg1_size = MeasureTextEx(font_play, transition3_msg1, font_size, spacing);
-    Vector2 msg2_size = MeasureTextEx(font_play, transition3_msg2, font_size, spacing);
-
-    float text_width = (msg1_size.x > msg2_size.x) ? msg1_size.x : msg2_size.x;
-
-    float box_width = text_width + padding_x * 2;
-    float box_height = msg1_size.y + msg2_size.y + line_gap + padding_y * 2;
-
-    message_box3 = (Rectangle){
-        screen_width / 2 - box_width / 2,
-        screen_height / 2 - box_height / 2,
-        box_width,
-        box_height};
-
-    message5_pos = (Vector2){
-        screen_width / 2 - msg1_size.x / 2,
-        message_box3.y + padding_y};
-
-    message6_pos = (Vector2){
-        screen_width / 2 - msg2_size.x / 2,
-        message_box3.y + padding_y + msg1_size.y + line_gap};
-}
-
-void load_data_total_window()
-{
-    float padding_x = 50;
-    float padding_y = 30;
-    float line_gap = 15;
-    float label_to_time_gap = 45;
-
-    // ---- Title: "Score of <playerName>" ----
-    snprintf(score_title, sizeof(score_title), "Score of %s", playerName);
-    Vector2 title_size = MeasureTextEx(font_play, score_title, (float)font_play.baseSize + 20, 2);
-    score_title_pos = (Vector2){
-        screen_width / 2 - title_size.x / 2 - 120,
-        screen_height / 10};
-
-    // ---- Level rows (Level 1..4 + their time) ----
-    float rows_start_y = score_title_pos.y + title_size.y + 60;
-    float row_start_x = screen_width / 2 - 150; // left edge of the whole block
-
-    for (int i = 0; i < LEVEL_COUNT; i++)
-    {
-        char levelLabel[16];
-        snprintf(levelLabel, sizeof(levelLabel), "Level %d", i + 1);
-        Vector2 label_size = MeasureTextEx(font_play, levelLabel, font_size, spacing);
-
-        level_label_pos[i] = (Vector2){
-            row_start_x,
-            rows_start_y + i * (label_size.y + line_gap)};
-
-        level_time_pos[i] = (Vector2){
-            row_start_x + label_size.x + label_to_time_gap,
-            level_label_pos[i].y};
-    }
-
-    // ---- EXIT button (left side) ----
-    Vector2 exit_size = MeasureTextEx(font_play, exit_message, (float)font_play.baseSize + 20, 2);
-    exit_button_pos = (Vector2){
-        screen_width / 2 - 250 - exit_size.x / 2,
-        screen_height - 120};
-
-    exit_button_posRec = (Rectangle){
-        exit_button_pos.x - padding_x,
-        exit_button_pos.y - padding_y,
-        exit_size.x + padding_x * 2,
-        exit_size.y + padding_y * 2};
-
-    // ---- PLAY AGAIN button (right side) ----
-    Vector2 playagain_size = MeasureTextEx(font_play, play_again_message, (float)font_play.baseSize + 20, 2);
-    playagain_button_pos = (Vector2){
-        screen_width / 2 + 250 - playagain_size.x / 2,
-        screen_height - 120};
-
-    playagain_button_posRec = (Rectangle){
-        playagain_button_pos.x - padding_x,
-        playagain_button_pos.y - padding_y,
-        playagain_size.x + padding_x * 2,
-        playagain_size.y + padding_y * 2};
-}
-
-static int level = 0;
-
-void start_gameplay()
-{
-
-    switch (level)
-    {
-    case ZERO_WINDOW:
-
-        mousepos = GetMousePosition();
-        {
-            Color playBtnColor = GetButtonColor(play_button_posRec, mousepos, Button_color);
-            Color credentialBtnColor = GetButtonColor(credentialButton_posRec, mousepos, Button_color);
-
-            DrawTexturePro(space_background,
-                           (Rectangle){0, 0, space_background.width, space_background.height},
-                           (Rectangle){0, 0, screen_width, screen_height},
-                           (Vector2){0, 0}, 0.0f, WHITE);
-
-            DrawRectangleRounded(play_button_posRec, 1.0f, 8, playBtnColor);
-            DrawRectangleRoundedLinesEx(play_button_posRec, 1.0f, 8, 2, BLACK);
-            DrawRectangleRounded(game_title_posRec, 1.0f, 8, Button_color);
-            DrawRectangleRoundedLinesEx(game_title_posRec, 1.0f, 8, 4, BLACK);
-            DrawRectangleRounded(credentialButton_posRec, 1.0f, 8, credentialBtnColor);
-            DrawRectangleRoundedLinesEx(credentialButton_posRec, 1.0f, 8, 2, BLACK);
-        }
-
-        DrawTextEx(font_play, play_message, play_button_pos, (float)font_play.baseSize + 20, 2, BLUE);
-        DrawTextEx(font_play, game_title, game_title_pos, (float)font_play.baseSize + 40, 2, BLUE);
-        DrawTextEx(font_play, credential_title, credentialButton_pos, (float)font_play.baseSize + 20, 2, BLUE);
-
-        if (CheckCollisionPointRec(mousepos, play_button_posRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
-        {
-            PlaySound(clicksound);
-            currentLevelNumber = 1;
-            StartLevelTimer();
-            level = NAME_INPUT;
-        }
-
-        if (CheckCollisionPointRec(mousepos, credentialButton_posRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
-        {
-            PlaySound(clicksound);
-            level = CREDENTIAL;
-        }
-
-        break;
-
-    case CREDENTIAL:
-        mousepos = GetMousePosition();
-
-        DrawTexturePro(space_background,
-                       (Rectangle){0, 0, space_background.width, space_background.height},
-                       (Rectangle){0, 0, screen_width, screen_height},
-                       (Vector2){0, 0}, 0.0f, WHITE);
-
-        DrawTextEx(font_play, credential_name1, credential_name1_pos, (float)font_play.baseSize + 10, 2, GOLD);
-        DrawTextEx(font_play, credential_name2, credential_name2_pos, (float)font_play.baseSize + 10, 2, GOLD);
-        DrawTextEx(font_play, supervisor_label, supervisor_label_pos, (float)font_play.baseSize + 10, 2, GOLD);
-        DrawTextEx(font_play, supervisor_name, supervisor_name_pos, (float)font_play.baseSize + 10, 2, GOLD);
-
-        {
-            Color backBtnColor = GetButtonColor(credential_back_posRec, mousepos, Button_color);
-            DrawRectangleRounded(credential_back_posRec, 1.0f, 8, backBtnColor);
-        }
-        DrawTextEx(font_play, back_message, credential_back_pos, (float)font_play.baseSize + 30, 2, BLUE);
-
-        if (CheckCollisionPointRec(mousepos, credential_back_posRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
-        {
-            PlaySound(clicksound);
-            level = ZERO_WINDOW;
-        }
-        break;
-
-    case NAME_INPUT:
-    {
-
-        DrawTexturePro(space_background,
-                       (Rectangle){0, 0, space_background.width, space_background.height},
-                       (Rectangle){0, 0, screen_width, screen_height},
-                       (Vector2){0, 0}, 0.0f, WHITE);
-
-        DrawRectangleRounded(name_label_box, 0.3f, 8, (Color){10, 15, 40, 255});
-        DrawRectangleRoundedLinesEx(name_label_box, 0.3f, 8, 2, BLACK);
-        DrawTextEx(font_play, name_label, name_label_pos, font_size, spacing, GOLD);
-
-        DrawRectangleRounded(name_input_box, 0.3f, 8, (Color){10, 15, 40, 255});
-        DrawRectangleRoundedLinesEx(name_input_box, 0.3f, 8, 2, BLACK);
-        DrawTextEx(font_play, playerName, name_input_text_pos, font_size, spacing, GOLD);
-
-        int key = GetCharPressed();
-        while (key > 0)
-        {
-            if (nameLetterCount < MAX_NAME_LEN)
-            {
-                playerName[nameLetterCount] = (char)key;
-                nameLetterCount++;
-                playerName[nameLetterCount] = '\0';
-            }
-            key = GetCharPressed();
-        }
-
-        // backspace
-        if (IsKeyPressed(KEY_BACKSPACE) && nameLetterCount > 0)
-        {
-            nameLetterCount--;
-            playerName[nameLetterCount] = '\0';
-        }
-
-        if (IsKeyPressed(KEY_ENTER) && nameLetterCount > 0)
-        {
-            PlaySound(clicksound);
-            level = RULES;
-        }
-
-        break;
-    }
-    case RULES:
-        mousepos = GetMousePosition();
-
-        DrawTexturePro(space_background,
-                       (Rectangle){0, 0, space_background.width, space_background.height},
-                       (Rectangle){0, 0, screen_width, screen_height},
-                       (Vector2){0, 0}, 0.0f, WHITE);
-
-        DrawRectangleRounded(rules_box, 0.1f, 8, (Color){10, 15, 40, 230});
-        DrawRectangleRoundedLinesEx(rules_box, 0.1f, 8, 2, GOLD);
-
-        snprintf(rules_line1, sizeof(rules_line1), "Hello %s,", playerName);
-
-        DrawTextEx(font_play, rules_line1, rules_line_pos[0], 26, spacing, GOLD);
-        DrawTextEx(font_play, rules_line2, rules_line_pos[1], 26, spacing, GOLD);
-        DrawTextEx(font_play, rules_line3, rules_line_pos[2], 26, spacing, GOLD);
-        DrawTextEx(font_play, rules_line4, rules_line_pos[3], 26, spacing, GOLD);
-        DrawTextEx(font_play, rules_line5, rules_line_pos[4], 26, spacing, GOLD);
-        DrawTextEx(font_play, rules_line6, rules_line_pos[5], 26, spacing, GOLD);
-        DrawTextEx(font_play, rules_line7, rules_line_pos[6], 26, spacing, GOLD);
-        DrawTextEx(font_play, rules_line8, rules_line_pos[7], 26, spacing, GOLD);
-        DrawTextEx(font_play, rules_line9, rules_line_pos[8], 26, spacing, GOLD);
-
-        {
-            Color startBtnColor = GetButtonColor(start_button_posRec, mousepos, Button_color);
-            DrawRectangleRounded(start_button_posRec, 1.0f, 8, startBtnColor);
-            DrawRectangleRoundedLinesEx(start_button_posRec, 1.0f, 8, 2, BLACK);
-        }
-        DrawTextEx(font_play, start_button_message, start_button_pos, (float)font_play.baseSize + 20, 2, GREEN);
-
-        if (CheckCollisionPointRec(mousepos, start_button_posRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
-        {
-            PlaySound(clicksound);
-            currentLevelNumber = 1;
-            StartLevelTimer();
-            level = LEVEL_1;
-        }
-
-        break;
-
-    case LEVEL_1:
-
-        if (timerRunning)
-            levelElapsedTime += GetFrameTime();
-        if (teleportCooldown > 0.0f)
-            teleportCooldown -= GetFrameTime();
-        blackholeAnimTime += GetFrameTime();
-
-        DrawTexturePro(space_background,
-                       (Rectangle){0, 0, space_background.width, space_background.height},
-                       (Rectangle){0, 0, screen_width, screen_height},
-                       (Vector2){0, 0}, 0.0f, WHITE);
-
-        DrawPlanetCentered(planet, planet_position[0]);
-
-        DrawTexturePro(rocketTex[rocket.dir],
-                       (Rectangle){0, 0, rocketTex[rocket.dir].width, rocketTex[rocket.dir].height},
-                       (Rectangle){rocket.pos.x * CELL, rocket.pos.y * CELL, rocketSize, rocketSize},
-                       (Vector2){0, 0}, 0.0f, WHITE);
-
-        for (int i = 0; i < wallCount1; i++)
-        {
-            DrawWall(wall_level1[i]);
-        }
-
-        if (!AllKeysCollected(keys_level1))
-        {
-            for (int i = 0; i < 4; i++)
-                DrawWallThick(redWalls_level1[i], RED, PLANET_WALL_THICK);
-        }
-
-        DrawKeys(keys_level1, blackholeAnimTime);
-
-        DrawBlackHole(blackholes_level1[0], blackholeAnimTime);
-        DrawBlackHole(blackholes_level1[1], blackholeAnimTime);
-
-        // UpdateAndDrawFlames(flameEmitters1, flameEmitterCount1, GetFrameTime());
-
-        updateRocket(&rocket, wall_level1, wallCount1, redWalls_level1, !AllKeysCollected(keys_level1), NULL, 0);
-        UpdateKeyPickups(keys_level1, rocket.pos);
-
-        {
-            Vector2 teleportDest;
-            if (CheckBlackHoleTeleport(rocket.pos, blackholes_level1, &teleportDest))
-            {
-                rocket.pos = teleportDest;
-                teleportCooldown = BLACKHOLE_COOLDOWN;
-                PlaySound(clicksound);
-            }
-        }
-
-        DrawHUD(1, KEY_TYPE_COUNT - CountKeysCollected(keys_level1));
-
-        if (AllKeysCollected(keys_level1) && is_at_same_place(planet_position[0], rocket.pos))
-        {
-            PlaySound(level_up_sound);
-            StopLevelTimer(0);
-            level = TR_WIN_1;
-        }
-        break;
-
-    case TR_WIN_1:
-        mousepos = GetMousePosition();
-
-        DrawTexturePro(space_background,
-                       (Rectangle){0, 0, space_background.width, space_background.height},
-                       (Rectangle){0, 0, screen_width, screen_height},
-                       (Vector2){0, 0}, 0.0f, WHITE);
-
-        {
-            Color nextBtnColor = GetButtonColor(message_box, mousepos, Button_color);
-            DrawRectangleRounded(message_box, 1.0f, 8, nextBtnColor);
-        }
-        DrawRectangleRoundedLinesEx(message_box, 1.0f, 8, 2, BLACK);
-
-        DrawTextEx(font_play, transition_msg1, message1_pos, font_size, spacing, BLUE);
-        DrawTextEx(font_play, transition_msg2, message2_pos, font_size, spacing, BLUE);
-
-        {
-            char yourTimeStr[32];
-            char resultText[64];
-            snprintf(yourTimeStr, sizeof(yourTimeStr), "%s", FormatTime(levelTimes[0]));
-            snprintf(resultText, sizeof(resultText), "Your Time: %s   Best: %s", yourTimeStr, FormatTime(bestLevelTimes[0]));
-            Vector2 resultSize = MeasureTextEx(font_play, resultText, 22, spacing);
-            DrawTextEx(font_play, resultText, (Vector2){screen_width / 2 - resultSize.x / 2, message_box.y + message_box.height + 15}, 22, spacing, GOLD);
-        }
-
-        if (CheckCollisionPointRec(mousepos, message_box) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
-        {
-            PlaySound(clicksound);
-            rocket.pos = rocket_position[1];
-            rocket.dir = DOWN;
-            currentLevelNumber = 2;
-            StartLevelTimer();
-            level = LEVEL_2;
-        }
-
-        break;
-
-    case LEVEL_2:
-
-        if (timerRunning)
-            levelElapsedTime += GetFrameTime();
-        if (teleportCooldown > 0.0f)
-            teleportCooldown -= GetFrameTime();
-        blackholeAnimTime += GetFrameTime();
-
-        DrawTexturePro(space_background2,
-                       (Rectangle){0, 0, space_background2.width, space_background2.height},
-                       (Rectangle){0, 0, screen_width, screen_height},
-                       (Vector2){0, 0}, 0.0f, WHITE);
-
-        DrawPlanetCentered(planet, planet_position[1]);
-
-        for (int i = 0; i < meteors_level2_size; i++)
-        {
-            DrawMeteorCentered(meteor, meteors_level2[i]);
-        }
-
-        DrawTexturePro(rocketTex[rocket.dir],
-                       (Rectangle){0, 0, rocketTex[rocket.dir].width, rocketTex[rocket.dir].height},
-                       (Rectangle){rocket.pos.x * CELL, rocket.pos.y * CELL, rocketSize, rocketSize},
-                       (Vector2){0, 0}, 0.0f, WHITE);
-
-        for (int i = 0; i < wallCount2; i++)
-        {
-            DrawWall(wall_level2[i]);
-        }
-
-        if (!AllKeysCollected(keys_level2))
-        {
-            for (int i = 0; i < 4; i++)
-                DrawWallThick(redWalls_level2[i], RED, PLANET_WALL_THICK);
-        }
-
-        DrawKeys(keys_level2, blackholeAnimTime);
-
-        DrawBlackHole(blackholes_level2[0], blackholeAnimTime);
-        DrawBlackHole(blackholes_level2[1], blackholeAnimTime);
-
-        // UpdateAndDrawFlames(flameEmitters2, flameEmitterCount2, GetFrameTime());
-
-        updateRocket(&rocket, wall_level2, wallCount2, redWalls_level2, !AllKeysCollected(keys_level2), meteors_level2, meteors_level2_size);
-        UpdateKeyPickups(keys_level2, rocket.pos);
-
-        {
-            Vector2 teleportDest;
-            if (CheckBlackHoleTeleport(rocket.pos, blackholes_level2, &teleportDest))
-            {
-                rocket.pos = teleportDest;
-                teleportCooldown = BLACKHOLE_COOLDOWN;
-                PlaySound(clicksound);
-            }
-        }
-
-        DrawHUD(2, KEY_TYPE_COUNT - CountKeysCollected(keys_level2));
-
-        if (AllKeysCollected(keys_level2) && is_at_same_place(planet_position[1], rocket.pos))
-        {
-            PlaySound(level_up_sound);
-            StopLevelTimer(1);
-            level = TR_WIN_2;
-        }
-        break;
-
-    case TR_WIN_2:
-        mousepos = GetMousePosition();
-
-        DrawTexturePro(space_background2,
-                       (Rectangle){0, 0, space_background2.width, space_background2.height},
-                       (Rectangle){0, 0, screen_width, screen_height},
-                       (Vector2){0, 0}, 0.0f, WHITE);
-
-        {
-            Color nextBtnColor = GetButtonColor(message_box2, mousepos, Button_color);
-            DrawRectangleRounded(message_box2, 1.0f, 8, nextBtnColor);
-        }
-
-        DrawRectangleRoundedLinesEx(message_box2, 1.0f, 8, 2, BLACK);
-
-        DrawTextEx(font_play, transition2_msg1, message3_pos, font_size, spacing, BLUE);
-        DrawTextEx(font_play, transition2_msg2, message4_pos, font_size, spacing, BLUE);
-
-        {
-            char yourTimeStr[32];
-            char resultText[64];
-            snprintf(yourTimeStr, sizeof(yourTimeStr), "%s", FormatTime(levelTimes[1]));
-            snprintf(resultText, sizeof(resultText), "Your Time: %s   Best: %s", yourTimeStr, FormatTime(bestLevelTimes[1]));
-            Vector2 resultSize = MeasureTextEx(font_play, resultText, 22, spacing);
-            DrawTextEx(font_play, resultText, (Vector2){screen_width / 2 - resultSize.x / 2, message_box.y + message_box.height + 15}, 22, spacing, GOLD);
-        }
-
-        if (CheckCollisionPointRec(mousepos, message_box2) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
-        {
-            PlaySound(clicksound);
-            rocket.pos = rocket_position[2];
-            rocket.dir = RIGHT;
-            currentLevelNumber = 3;
-            StartLevelTimer();
-            level = LEVEL_3;
-        }
-
-        break;
-
-    case LEVEL_3:
-
-        if (timerRunning)
-            levelElapsedTime += GetFrameTime();
-        if (teleportCooldown > 0.0f)
-            teleportCooldown -= GetFrameTime();
-        blackholeAnimTime += GetFrameTime();
-
-        DrawTexturePro(space_background3,
-                       (Rectangle){0, 0, space_background3.width, space_background3.height},
-                       (Rectangle){0, 0, screen_width, screen_height},
-                       (Vector2){0, 0}, 0.0f, WHITE);
-
-        DrawPlanetCentered(planet, planet_position[2]);
-
-        for (int i = 0; i < meteors_level3_size; i++)
-        {
-            DrawMeteorCentered(meteor, meteors_level3[i]);
-        }
-
-        DrawTexturePro(rocketTex[rocket.dir],
-                       (Rectangle){0, 0, rocketTex[rocket.dir].width, rocketTex[rocket.dir].height},
-                       (Rectangle){rocket.pos.x * CELL, rocket.pos.y * CELL, rocketSize, rocketSize},
-                       (Vector2){0, 0}, 0.0f, WHITE);
-
-        for (int i = 0; i < wallCount3; i++)
-        {
-            DrawWall(wall_level3[i]);
-        }
-
-        if (!AllKeysCollected(keys_level3))
-        {
-            for (int i = 0; i < 4; i++)
-                DrawWallThick(redWalls_level3[i], RED, PLANET_WALL_THICK);
-        }
-
-        DrawKeys(keys_level3, blackholeAnimTime);
-
-        DrawBlackHole(blackholes_level3[0], blackholeAnimTime);
-        DrawBlackHole(blackholes_level3[1], blackholeAnimTime);
-
-        UpdateAndDrawFlames(flameEmitters3, flameEmitterCount3, GetFrameTime());
-
-        updateRocket(&rocket, wall_level3, wallCount3, redWalls_level3, !AllKeysCollected(keys_level3), meteors_level3, meteors_level3_size);
-        UpdateKeyPickups(keys_level3, rocket.pos);
-
-        {
-            Vector2 teleportDest;
-            if (CheckBlackHoleTeleport(rocket.pos, blackholes_level3, &teleportDest))
-            {
-                rocket.pos = teleportDest;
-                teleportCooldown = BLACKHOLE_COOLDOWN;
-                PlaySound(clicksound);
-            }
-        }
-
-        DrawHUD(3, KEY_TYPE_COUNT - CountKeysCollected(keys_level3));
-
-        if (AllKeysCollected(keys_level3) && is_at_same_place(planet_position[2], rocket.pos))
-        {
-            PlaySound(level_up_sound);
-            StopLevelTimer(2);
-            level = TR_WIN_3;
-        }
-        break;
-
-    case TR_WIN_3:
-        mousepos = GetMousePosition();
-
-        DrawTexturePro(space_background3,
-                       (Rectangle){0, 0, space_background3.width, space_background3.height},
-                       (Rectangle){0, 0, screen_width, screen_height},
-                       (Vector2){0, 0}, 0.0f, WHITE);
-
-        {
-            Color nextBtnColor = GetButtonColor(message_box3, mousepos, Button_color);
-            DrawRectangleRounded(message_box3, 1.0f, 8, nextBtnColor);
-        }
-
-        DrawRectangleRoundedLinesEx(message_box3, 1.0f, 8, 2, BLACK);
-
-        DrawTextEx(font_play, transition3_msg1, message5_pos, font_size, spacing, BLUE);
-        DrawTextEx(font_play, transition3_msg2, message6_pos, font_size, spacing, BLUE);
-
-        {
-            char yourTimeStr[32];
-            char resultText[64];
-            snprintf(yourTimeStr, sizeof(yourTimeStr), "%s", FormatTime(levelTimes[2]));
-            snprintf(resultText, sizeof(resultText), "Your Time: %s   Best: %s", yourTimeStr, FormatTime(bestLevelTimes[2]));
-            Vector2 resultSize = MeasureTextEx(font_play, resultText, 22, spacing);
-            DrawTextEx(font_play, resultText, (Vector2){screen_width / 2 - resultSize.x / 2, message_box.y + message_box.height + 15}, 22, spacing, GOLD);
-        }
-
-        if (CheckCollisionPointRec(mousepos, message_box3) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
-        {
-            PlaySound(clicksound);
-            rocket.pos = rocket_position[3];
-            rocket.dir = LEFT;
-            currentLevelNumber = 4;
-            StartLevelTimer();
-            ResetSpaceShips();
-            level = LEVEL4;
-        }
-
-        break;
-
-    case LEVEL4:
-
-        if (timerRunning)
-            levelElapsedTime += GetFrameTime();
-        if (teleportCooldown > 0.0f)
-            teleportCooldown -= GetFrameTime();
-        blackholeAnimTime += GetFrameTime();
-
-        updateSpaceShip(&alienShip1);
-        updateSpaceShip(&alienShip2);
-
-        DrawTexturePro(space_background4,
-                       (Rectangle){0, 0, space_background4.width, space_background4.height},
-                       (Rectangle){0, 0, screen_width, screen_height},
-                       (Vector2){0, 0}, 0.0f, WHITE);
-
-        DrawPlanetCentered(planet, planet_position[3]);
-        DrawSpaceShipCentered(alien_spaceship, alienShip1.pos);
-        DrawSpaceShipCentered(alien_spaceship, alienShip2.pos);
-
-        DrawTexturePro(rocketTex[rocket.dir],
-                       (Rectangle){0, 0, rocketTex[rocket.dir].width, rocketTex[rocket.dir].height},
-                       (Rectangle){rocket.pos.x * CELL, rocket.pos.y * CELL, rocketSize, rocketSize},
-                       (Vector2){0, 0}, 0.0f, WHITE);
-
-        for (int i = 0; i < wallCount4; i++)
-        {
-            DrawWall(wall_level4[i]);
-        }
-
-        if (!AllKeysCollected(keys_level4))
-        {
-            for (int i = 0; i < 4; i++)
-                DrawWallThick(redWalls_level4[i], RED, PLANET_WALL_THICK);
-        }
-
-        DrawKeys(keys_level4, blackholeAnimTime);
-
-        DrawBlackHole(blackholes_level4[0], blackholeAnimTime);
-        DrawBlackHole(blackholes_level4[1], blackholeAnimTime);
-
-        UpdateAndDrawFlames(flameEmitters4, flameEmitterCount4, GetFrameTime());
-
-        updateRocket(&rocket, wall_level4, wallCount4, redWalls_level4, !AllKeysCollected(keys_level4), NULL, 0);
-        UpdateKeyPickups(keys_level4, rocket.pos);
-
-        // Check collision with alien spaceships
-        if (CheckAlienShipCollision(rocket.pos, alienShip1.pos))
-        {
-            rocket.pos = rocket_position[3];
-            PlaySound(crashsound);
-        }
-        if (CheckAlienShipCollision(rocket.pos, alienShip2.pos))
-        {
-            rocket.pos = rocket_position[3];
-            PlaySound(crashsound);
-        }
-
-        {
-            Vector2 teleportDest;
-            if (CheckBlackHoleTeleport(rocket.pos, blackholes_level4, &teleportDest))
-            {
-                rocket.pos = teleportDest;
-                teleportCooldown = BLACKHOLE_COOLDOWN;
-                PlaySound(clicksound);
-            }
-        }
-
-        DrawHUD(4, KEY_TYPE_COUNT - CountKeysCollected(keys_level4));
-
-        if (AllKeysCollected(keys_level4) && is_at_same_place(planet_position[3], rocket.pos))
-        {
-            PlaySound(level_up_sound);
-            StopLevelTimer(3);
-            level = TR_WIN_4;
-        }
-        break;
-
-    case TR_WIN_4:
-        mousepos = GetMousePosition();
-
-        DrawTexturePro(space_background4,
-                       (Rectangle){0, 0, space_background4.width, space_background4.height},
-                       (Rectangle){0, 0, screen_width, screen_height},
-                       (Vector2){0, 0}, 0.0f, WHITE);
-
-        {
-            Color nextBtnColor = GetButtonColor(message_box3, mousepos, Button_color);
-            DrawRectangleRounded(message_box3, 1.0f, 8, nextBtnColor);
-        }
-
-        DrawRectangleRoundedLinesEx(message_box3, 1.0f, 8, 2, BLACK);
-
-        DrawTextEx(font_play, transition4_msg1, message5_pos, font_size, spacing, BLUE);
-        DrawTextEx(font_play, transition4_msg2, message6_pos, font_size, spacing, BLUE);
-
-        {
-            char yourTimeStr[32];
-            char resultText[64];
-            snprintf(yourTimeStr, sizeof(yourTimeStr), "%s", FormatTime(levelTimes[3]));
-            snprintf(resultText, sizeof(resultText), "Your Time: %s   Best: %s", yourTimeStr, FormatTime(bestLevelTimes[3]));
-            Vector2 resultSize = MeasureTextEx(font_play, resultText, 22, spacing);
-            DrawTextEx(font_play, resultText, (Vector2){screen_width / 2 - resultSize.x / 2, message_box.y + message_box.height + 15}, 22, spacing, GOLD);
-        }
-
-        if (CheckCollisionPointRec(mousepos, message_box3) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
-        {
-            PlaySound(clicksound);
-            level = TOTAL_WINDOW;
-        }
-        break;
-
-    case TOTAL_WINDOW:
-
-        mousepos = GetMousePosition();
-
-        snprintf(score_title, sizeof(score_title), "Score of %s", playerName);
-
-        DrawTexturePro(space_background5,
-                       (Rectangle){0, 0, space_background5.width, space_background5.height},
-                       (Rectangle){0, 0, screen_width, screen_height},
-                       (Vector2){0, 0}, 0.0f, WHITE);
-
-        DrawTextEx(font_play, score_title, score_title_pos, (float)font_play.baseSize + 20, 2, GOLD);
-
-        for (int i = 0; i < LEVEL_COUNT; i++)
-        {
-            char levelLabel[16];
-            snprintf(levelLabel, sizeof(levelLabel), "Level %d", i + 1);
-            DrawTextEx(font_play, levelLabel, level_label_pos[i], font_size, spacing, BLUE);
-            DrawTextEx(font_play, FormatTime(levelTimes[i]), level_time_pos[i], font_size, spacing, (Color){0, 255, 180, 255});
-        }
-
-        {
-            Color exitBtnColor = GetButtonColor(exit_button_posRec, mousepos, Button_color);
-            Color playAgainBtnColor = GetButtonColor(playagain_button_posRec, mousepos, Button_color);
-
-            DrawRectangleRounded(exit_button_posRec, 1.0f, 8, exitBtnColor);
-            DrawRectangleRoundedLinesEx(exit_button_posRec, 1.0f, 8, 2, BLACK);
-            DrawTextEx(font_play, exit_message, exit_button_pos, (float)font_play.baseSize + 20, 2, BLUE);
-
-            DrawRectangleRounded(playagain_button_posRec, 1.0f, 8, playAgainBtnColor);
-            DrawRectangleRoundedLinesEx(playagain_button_posRec, 1.0f, 8, 2, BLACK);
-            DrawTextEx(font_play, play_again_message, playagain_button_pos, (float)font_play.baseSize + 20, 2, BLUE);
-        }
-
-        if (CheckCollisionPointRec(mousepos, exit_button_posRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
-        {
-            PlaySound(clicksound);
-            exitGameRequested = true;
-        }
-
-        if (CheckCollisionPointRec(mousepos, playagain_button_posRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
-        {
-            PlaySound(clicksound);
-            level = ZERO_WINDOW;
-        }
-
-        break;
-    }
-}
 int main()
 {
     InitWindow(screen_width, screen_height, "COSMIC MAZE");
     InitAudioDevice();
-    SetMasterVolume(0.5f);
+    SetMasterVolume(Master_volume_value);
     SetTargetFPS(60);
+    load_data_0();
+    load_data_pause_window();
 
     int levelChoice;
-    printf("Enter window number (0-11): ");
+    printf("Enter window number (0-12): ");
     scanf("%d", &levelChoice);
     level = levelChoice;
 
@@ -2080,6 +1377,8 @@ int main()
     }
 
     load_data_0();
+    load_data_leaderboard_window();
+    load_data_howto_window();
     load_data_1();
     load_credentials();
     load_data_name_window();
