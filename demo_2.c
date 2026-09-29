@@ -70,6 +70,7 @@ typedef enum
     TR_WIN_4,
     TOTAL_WINDOW,
     LEADERBOARD_WINDOW,
+    HOW_TO_PLAY_WINDOW,
 } WINDOW_NAME;
 
 typedef enum
@@ -229,14 +230,14 @@ char *credential_name1 = "Mujahidul Islam Nafi - 2505095";
 char *credential_name2 = "Md. Mashrur Hasan - 2505115";
 char *back_message = "BACK";
 char rules_line1[100];
-char *rules_line2 = "Your space exploration starts here!";
-char *rules_line3 = "You must travel across four planets.";
-char *rules_line4 = "To complete each level, collect four keys";
-char *rules_line5 = "and navigate the mysterious maze with your ";
-char *rules_line6 = "keyboard arrows.Avoid crashing into meteors and walls.";
-char *rules_line7 = "If you collide with an alien spaceship, you will";
-char *rules_line8 = "be sent back to the starting point.";
-char *rules_line9 = "Be careful, and good luck on your journey!";
+char *rules_line2 = "You step into the uncharted depths of a cosmic maze.";
+char *rules_line3 = "Across four forgotten worlds lie four celestial keys.";
+char *rules_line4 = "Shatter the dark void to claim your ultimate freedom.";
+char *rules_line5 = "Navigate abyssal corridors as meteor storms rage on.";
+char *rules_line6 = "Beware the alien watchers lurking silently in shadows.";
+char *rules_line7 = "Touching temporal fields will fracture time itself,";
+char *rules_line8 = "casting your ship back to where your journey started.";
+char *rules_line9 = "Are you prepared to face the mysteries of the dark?";
 
 char *start_button_message = "START";
 
@@ -287,6 +288,29 @@ Vector2 leaderboard_title_pos;
 char *leaderboard_back_message = "BACK";
 Vector2 leaderboard_back_pos;
 Rectangle leaderboard_back_posRec;
+
+// HOW TO PLAY
+char *howto_button_message = "HOW TO PLAY";
+Vector2 howto_button_pos;
+Rectangle howto_button_posRec;
+
+char *howto_title = "HOW TO PLAY";
+Vector2 howto_title_pos;
+Vector2 howto_back_pos;
+Rectangle howto_back_posRec;
+Rectangle howto_box;
+
+#define HOWTO_LINE_COUNT 8
+char *howto_lines[HOWTO_LINE_COUNT] = {
+    "1. Move the rocket with the ARROW keys or W, A, S, D.",
+    "2. Press SPACEBAR to pause the game. Press it again to resume.",
+    "3. First, collect all 4 keys in the level.",
+    "4. After the 4th key, the red walls around the planet will open.",
+    "5. Avoid crashing into meteors and walls.",
+    "6. If you touch an alien spaceship, you restart from the beginning.",
+    "7. Black holes come in pairs. Enter one to teleport to the other.",
+    "8. Land on the planet to complete the level."};
+Vector2 howto_line_pos[HOWTO_LINE_COUNT];
 
 Vector2 name_label_pos;
 Vector2 name_input_text_pos;
@@ -577,7 +601,7 @@ void HandlePauseMenu(void)
     DrawRectangleRounded(exit_game_button_posRec, 1.0f, 8, exitBtnColor);
     DrawRectangleRoundedLinesEx(exit_game_button_posRec, 1.0f, 8, 2, BLACK);
     DrawTextEx(font_play, exit_game_button_message, exit_game_button_pos, (float)font_play.baseSize + 10, 2, RED);
-
+       
     Color musicBtnColor = GetButtonColor(music_button_posRec, mousepos, Button_color);
     char *musicText = musicOn ? music_on_message : music_off_message;
     Vector2 musicSize = MeasureTextEx(font_play, musicText, (float)font_play.baseSize + 10, 2);
@@ -588,7 +612,7 @@ void HandlePauseMenu(void)
     DrawRectangleRounded(music_button_posRec, 1.0f, 8, musicBtnColor);
     DrawRectangleRoundedLinesEx(music_button_posRec, 1.0f, 8, 2, BLACK);
     DrawTextEx(font_play, musicText, music_button_pos, (float)font_play.baseSize + 10, 2, musicOn ? GREEN : RED);
-
+    
     if (CheckCollisionPointRec(mousepos, music_button_posRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
     {
         PlaySound(clicksound);
@@ -1291,13 +1315,13 @@ void load_data_0()
 
     font_play = LoadFont("D:/Maze-explorer/Fonts/ALIEN CYBERNETICS.ttf");
     play_button_pos = (Vector2){screen_width / 2 - MeasureTextEx(font_play, play_message, (float)font_play.baseSize + 10, 2).x / 2,
-                                screen_height / 2 - 30 - 90 - MeasureTextEx(font_play, play_message, (float)font_play.baseSize, 2).y / 2};
+                                screen_height / 2 - 30 - MeasureTextEx(font_play, play_message, (float)font_play.baseSize, 2).y / 2};
 
     game_title_pos = (Vector2){screen_width / 2 - MeasureTextEx(font_play, game_title, (float)font_play.baseSize + 40, 4).x / 2,
                                screen_height / 10 - MeasureTextEx(font_play, game_title, (float)font_play.baseSize + 40, 4).y / 2};
 
     credentialButton_pos = (Vector2){screen_width / 2 - MeasureTextEx(font_play, credential_title, (float)font_play.baseSize + 10, 2).x / 2,
-                                     screen_height / 2 + 60 - 90 - MeasureTextEx(font_play, credential_title, (float)font_play.baseSize, 2).y / 2};
+                                     screen_height / 2 + 60 - MeasureTextEx(font_play, credential_title, (float)font_play.baseSize, 2).y / 2};
 
     credentialButton_posRec = (Rectangle){credentialButton_pos.x - paddingX,
                                           credentialButton_pos.y - paddingY,
@@ -1314,7 +1338,7 @@ void load_data_0()
                                     MeasureTextEx(font_play, game_title, (float)font_play.baseSize + 40, 4).x + paddingX * 2,
                                     MeasureTextEx(font_play, game_title, (float)font_play.baseSize + 40, 4).y / 2 + paddingY * 4};
 
-    // LEADERBOARD button - sits right under the CREDENTIAL button
+        // LEADERBOARD button - sits right under the CREDENTIAL button
     leaderboard_button_pos = (Vector2){screen_width / 2 - MeasureTextEx(font_play, leaderboard_button_message, (float)font_play.baseSize + 10, 2).x / 2,
                                        credentialButton_posRec.y + credentialButton_posRec.height + 30};
 
@@ -1323,9 +1347,18 @@ void load_data_0()
                                             MeasureTextEx(font_play, leaderboard_button_message, (float)font_play.baseSize + 10, 2).x + paddingX * 2,
                                             MeasureTextEx(font_play, leaderboard_button_message, (float)font_play.baseSize + 10, 2).y + paddingY * 2};
 
-    // EXIT button - sits right under the LEADERBOARD button
+    // HOW TO PLAY button - sits right under the LEADERBOARD button
+    howto_button_pos = (Vector2){screen_width / 2 - MeasureTextEx(font_play, howto_button_message, (float)font_play.baseSize + 10, 2).x / 2,
+                                 leaderboard_button_posRec.y + leaderboard_button_posRec.height + 30};
+
+    howto_button_posRec = (Rectangle){howto_button_pos.x - paddingX,
+                                      howto_button_pos.y - paddingY,
+                                      MeasureTextEx(font_play, howto_button_message, (float)font_play.baseSize + 10, 2).x + paddingX * 2,
+                                      MeasureTextEx(font_play, howto_button_message, (float)font_play.baseSize + 10, 2).y + paddingY * 2};
+
+    // EXIT button - sits right under the HOW TO PLAY button
     main_exit_button_pos = (Vector2){screen_width / 2 - MeasureTextEx(font_play, exit_message, (float)font_play.baseSize + 10, 2).x / 2,
-                                     leaderboard_button_posRec.y + leaderboard_button_posRec.height + 30};
+                                     howto_button_posRec.y + howto_button_posRec.height + 30};
 
     main_exit_button_posRec = (Rectangle){main_exit_button_pos.x - paddingX,
                                           main_exit_button_pos.y - paddingY,
@@ -1350,6 +1383,26 @@ void load_data_leaderboard_window()
         leaderboard_back_pos.y - paddingY,
         back_size.x + paddingX * 2,
         back_size.y + paddingY * 2};
+}
+void load_data_howto_window()
+{
+    Vector2 title_size = MeasureTextEx(font_play, howto_title, (float)font_play.baseSize + 20, 2);
+    howto_title_pos = (Vector2){screen_width / 2 - title_size.x / 2, screen_height / 12};
+
+    howto_back_pos = (Vector2){30, 30};
+    Vector2 back_size = MeasureTextEx(font_play, back_message, (float)font_play.baseSize + 30, 2);
+    howto_back_posRec = (Rectangle){
+        howto_back_pos.x - 20,
+        howto_back_pos.y - 15,
+        back_size.x + 40,
+        back_size.y + 30};
+
+    howto_box = (Rectangle){screen_width / 2 - 600, 170, 1200, 620};
+
+    for (int i = 0; i < HOWTO_LINE_COUNT; i++)
+    {
+        howto_line_pos[i] = (Vector2){howto_box.x + 40, howto_box.y + 45 + i * 65};
+    }
 }
 
 void load_credentials()
@@ -1436,6 +1489,7 @@ void load_data_pause_window()
     float paddingX = 30;
     float paddingY = 15;
 
+   
     Vector2 resume_size = MeasureTextEx(font_play, resume_button_message, (float)font_play.baseSize + 10, 2);
     resume_button_pos = (Vector2){
         screen_width / 2 - resume_size.x / 2,
@@ -1446,6 +1500,7 @@ void load_data_pause_window()
         resume_size.x + paddingX * 2,
         resume_size.y + paddingY * 2};
 
+    
     Vector2 music_size = MeasureTextEx(font_play, music_off_message, (float)font_play.baseSize + 10, 2);
     music_button_posRec = (Rectangle){
         screen_width / 2 - music_size.x / 2 - paddingX,
@@ -1453,6 +1508,7 @@ void load_data_pause_window()
         music_size.x + paddingX * 2,
         music_size.y + paddingY * 2};
 
+    
     Vector2 exit_size = MeasureTextEx(font_play, exit_game_button_message, (float)font_play.baseSize + 10, 2);
     exit_game_button_pos = (Vector2){
         screen_width / 2 - exit_size.x / 2,
@@ -1673,6 +1729,7 @@ void start_gameplay()
             Color credentialBtnColor = GetButtonColor(credentialButton_posRec, mousepos, Button_color);
             Color leaderboardBtnColor = GetButtonColor(leaderboard_button_posRec, mousepos, Button_color);
             Color exitBtnColor = GetButtonColor(main_exit_button_posRec, mousepos, Button_color);
+            Color howtoBtnColor = GetButtonColor(howto_button_posRec, mousepos, Button_color);
 
             DrawTexturePro(space_background,
                            (Rectangle){0, 0, space_background.width, space_background.height},
@@ -1687,14 +1744,18 @@ void start_gameplay()
             DrawRectangleRoundedLinesEx(credentialButton_posRec, 1.0f, 8, 2, BLACK);
             DrawRectangleRounded(leaderboard_button_posRec, 1.0f, 8, leaderboardBtnColor);
             DrawRectangleRoundedLinesEx(leaderboard_button_posRec, 1.0f, 8, 2, BLACK);
+             DrawRectangleRounded(howto_button_posRec, 1.0f, 8, howtoBtnColor);
+            DrawRectangleRoundedLinesEx(howto_button_posRec, 1.0f, 8, 2, BLACK);
             DrawRectangleRounded(main_exit_button_posRec, 1.0f, 8, exitBtnColor);
             DrawRectangleRoundedLinesEx(main_exit_button_posRec, 1.0f, 8, 2, BLACK);
+        
         }
 
         DrawTextEx(font_play, play_message, play_button_pos, (float)font_play.baseSize + 10, 2, BLUE);
         DrawTextEx(font_play, game_title, game_title_pos, (float)font_play.baseSize + 40, 4, BLUE);
         DrawTextEx(font_play, credential_title, credentialButton_pos, (float)font_play.baseSize + 10, 2, BLUE);
         DrawTextEx(font_play, leaderboard_button_message, leaderboard_button_pos, (float)font_play.baseSize + 10, 2, BLUE);
+        DrawTextEx(font_play, howto_button_message, howto_button_pos, (float)font_play.baseSize + 10, 2, BLUE);
         DrawTextEx(font_play, exit_message, main_exit_button_pos, (float)font_play.baseSize + 10, 2, BLUE);
 
         if (CheckCollisionPointRec(mousepos, play_button_posRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
@@ -1717,6 +1778,11 @@ void start_gameplay()
             PlaySound(clicksound);
             LoadPlayerLeaderboard();
             level = LEADERBOARD_WINDOW;
+        }
+        if (CheckCollisionPointRec(mousepos, howto_button_posRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+        {
+            PlaySound(clicksound);
+            level = HOW_TO_PLAY_WINDOW;
         }
 
         if (CheckCollisionPointRec(mousepos, main_exit_button_posRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
@@ -1779,6 +1845,38 @@ void start_gameplay()
         }
 
         break;
+
+         case HOW_TO_PLAY_WINDOW:
+        mousepos = GetMousePosition();
+
+        DrawTexturePro(space_background,
+                       (Rectangle){0, 0, space_background.width, space_background.height},
+                       (Rectangle){0, 0, screen_width, screen_height},
+                       (Vector2){0, 0}, 0.0f, WHITE);
+
+        DrawTextEx(font_play, howto_title, howto_title_pos, (float)font_play.baseSize + 20, 2, GOLD);
+
+        DrawRectangleRounded(howto_box, 0.05f, 8, (Color){10, 15, 40, 230});
+        DrawRectangleRoundedLinesEx(howto_box, 0.05f, 8, 2, GOLD);
+
+        for (int i = 0; i < HOWTO_LINE_COUNT; i++)
+        {
+            DrawTextEx(font_play, howto_lines[i], howto_line_pos[i], 26, spacing, GOLD);
+        }
+
+        {
+            Color howtoBackColor = GetButtonColor(howto_back_posRec, mousepos, Button_color);
+            DrawRectangleRounded(howto_back_posRec, 1.0f, 8, howtoBackColor);
+        }
+        DrawTextEx(font_play, back_message, howto_back_pos, (float)font_play.baseSize + 30, 2, BLUE);
+
+        if (CheckCollisionPointRec(mousepos, howto_back_posRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+        {
+            PlaySound(clicksound);
+            level = ZERO_WINDOW;
+        }
+
+        break;   
 
     case CREDENTIAL:
         mousepos = GetMousePosition();
@@ -2549,6 +2647,7 @@ int main()
 
     load_data_0();
     load_data_leaderboard_window();
+    load_data_howto_window();
     load_data_1();
     load_credentials();
     load_data_name_window();
