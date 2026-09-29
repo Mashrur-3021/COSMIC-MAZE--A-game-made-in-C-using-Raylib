@@ -956,7 +956,7 @@ bool is_at_same_place(Vector2 planet_pos, Vector2 rocket_pos)
 // Check if rocket collides with alien spaceship (using grid-based collision)
 bool CheckAlienShipCollision(Vector2 rocket_pos, Vector2 ship_pos)
 {
-    float collision_distance = 0.8f; // collision radius in grid cells
+    float collision_distance = 0.3f; // collision radius in grid cells
     return Vector2Distance(rocket_pos, ship_pos) < collision_distance;
 }
 
