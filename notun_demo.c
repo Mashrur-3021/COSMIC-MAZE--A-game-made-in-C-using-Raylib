@@ -326,6 +326,11 @@ char *play_again_message = "PLAY AGAIN";
 
 Vector2 exit_button_pos;
 Rectangle exit_button_posRec;
+bool musicOn = true;
+char *music_on_message = "MUSIC: ON";
+char *music_off_message = "MUSIC: OFF";
+Vector2 music_button_pos;
+Rectangle music_button_posRec;
 
 Vector2 playagain_button_pos;
 Rectangle playagain_button_posRec;
@@ -570,6 +575,28 @@ void HandlePauseMenu(void)
     DrawRectangleRounded(exit_game_button_posRec, 1.0f, 8, exitBtnColor);
     DrawRectangleRoundedLinesEx(exit_game_button_posRec, 1.0f, 8, 2, BLACK);
     DrawTextEx(font_play, exit_game_button_message, exit_game_button_pos, (float)font_play.baseSize + 10, 2, RED);
+       
+    Color musicBtnColor = GetButtonColor(music_button_posRec, mousepos, Button_color);
+    char *musicText = musicOn ? music_on_message : music_off_message;
+    Vector2 musicSize = MeasureTextEx(font_play, musicText, (float)font_play.baseSize + 10, 2);
+    music_button_pos = (Vector2){
+        music_button_posRec.x + music_button_posRec.width / 2 - musicSize.x / 2,
+        music_button_posRec.y + music_button_posRec.height / 2 - musicSize.y / 2};
+
+    DrawRectangleRounded(music_button_posRec, 1.0f, 8, musicBtnColor);
+    DrawRectangleRoundedLinesEx(music_button_posRec, 1.0f, 8, 2, BLACK);
+    DrawTextEx(font_play, musicText, music_button_pos, (float)font_play.baseSize + 10, 2, musicOn ? GREEN : RED);
+    
+        if (CheckCollisionPointRec(mousepos, music_button_posRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+    {
+        PlaySound(clicksound);
+        musicOn = !musicOn; 
+
+        if (musicOn)
+            SetMusicVolume(backgrnd_music, 1.0f);
+        else
+            SetMusicVolume(backgrnd_music, 0.0f);
+    }
 
     if (CheckCollisionPointRec(mousepos, resume_button_posRec) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
     {
@@ -1384,7 +1411,7 @@ void load_data_name_window()
 void load_data_pause_window()
 {
     float box_width = 500;
-    float box_height = 280;
+    float box_height = 360;
 
     pause_box = (Rectangle){
         screen_width / 2 - box_width / 2,
@@ -1400,20 +1427,30 @@ void load_data_pause_window()
     float paddingX = 30;
     float paddingY = 15;
 
+   
     Vector2 resume_size = MeasureTextEx(font_play, resume_button_message, (float)font_play.baseSize + 10, 2);
     resume_button_pos = (Vector2){
         screen_width / 2 - resume_size.x / 2,
-        pause_box.y + 130};
+        pause_box.y + 120};
     resume_button_posRec = (Rectangle){
         resume_button_pos.x - paddingX,
         resume_button_pos.y - paddingY,
         resume_size.x + paddingX * 2,
         resume_size.y + paddingY * 2};
 
+    
+    Vector2 music_size = MeasureTextEx(font_play, music_off_message, (float)font_play.baseSize + 10, 2);
+    music_button_posRec = (Rectangle){
+        screen_width / 2 - music_size.x / 2 - paddingX,
+        pause_box.y + 190 - paddingY,
+        music_size.x + paddingX * 2,
+        music_size.y + paddingY * 2};
+
+    
     Vector2 exit_size = MeasureTextEx(font_play, exit_game_button_message, (float)font_play.baseSize + 10, 2);
     exit_game_button_pos = (Vector2){
         screen_width / 2 - exit_size.x / 2,
-        pause_box.y + 200};
+        pause_box.y + 260};
     exit_game_button_posRec = (Rectangle){
         exit_game_button_pos.x - paddingX,
         exit_game_button_pos.y - paddingY,
