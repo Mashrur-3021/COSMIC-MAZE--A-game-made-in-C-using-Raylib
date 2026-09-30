@@ -9,8 +9,8 @@
 #define LEVEL_COUNT 4
 #define CELL 60
 #define THICK 15
-#define rocketSpeed 3
-#define rocketSize 30
+#define rocketSpeed 3.5
+#define rocketSize 27
 #define moonSize 42
 #define meteorSize 34
 #define BLACKHOLE_RADIUS_CELLS 0.45f
@@ -572,10 +572,6 @@ void HandlePauseMenu(void)
     }
 }
 
-void InitFireParticles(void)
-{
-}
-
 void AddEmitter(FlameEmitter *arr, int *count, Vector2 pos)
 {
     if (*count >= MAX_LEVEL_EMITTERS)
@@ -855,7 +851,7 @@ bool is_at_same_place(Vector2 planet_pos, Vector2 rocket_pos)
 
 bool CheckAlienShipCollision(Vector2 rocket_pos, Vector2 ship_pos)
 {
-    float collision_distance = 0.3f;
+    float collision_distance = 0.5f;
     return Vector2Distance(rocket_pos, ship_pos) < collision_distance;
 }
 
@@ -1041,7 +1037,6 @@ void DrawKeys(Key keys[KEY_TYPE_COUNT], float t)
         float bowCx = cx - shaftLen / 2.0f - bowOuterR + shaftThick;
         float bowCy = cy;
 
-        // bow: a ring, so the middle reads as a hole like a real key head
         DrawRing((Vector2){bowCx, bowCy}, bowInnerR, bowOuterR, 0, 360, 24, c);
         DrawCircleLines((int)bowCx, (int)bowCy, bowOuterR, BLACK);
         DrawCircleLines((int)bowCx, (int)bowCy, bowInnerR, BLACK);
@@ -1222,7 +1217,6 @@ int main()
 
     LoadLeaderboard();
 
-    InitFireParticles();
     BuildFlameEmitters(wall_level1, wallCount1, flameEmitters1, &flameEmitterCount1);
     BuildFlameEmitters(wall_level2, wallCount2, flameEmitters2, &flameEmitterCount2);
     BuildFlameEmitters(wall_level3, wallCount3, flameEmitters3, &flameEmitterCount3);
@@ -1289,6 +1283,11 @@ int main()
     UnloadTexture(planet);
     UnloadTexture(meteor);
     UnloadTexture(space_background);
+    UnloadTexture(space_background2);
+    UnloadTexture(space_background3);
+    UnloadTexture(space_background4);
+    UnloadTexture(space_background5);
+    UnloadTexture(alien_spaceship);
     for (int i = 0; i < CNT; i++)
     {
         UnloadTexture(rocketTex[i]);

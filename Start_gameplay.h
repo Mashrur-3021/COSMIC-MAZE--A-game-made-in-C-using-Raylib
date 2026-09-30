@@ -732,13 +732,13 @@ void start_gameplay()
             }
 
             {
-                Vector2 teleportDest;
-                if (CheckBlackHoleTeleport(rocket.pos, blackholes_level4, &teleportDest))
-                {
-                    rocket.pos = teleportDest;
-                    teleportCooldown = BLACKHOLE_COOLDOWN;
-                    PlaySound(clicksound);
-                }
+                // Vector2 teleportDest;
+                // if (CheckBlackHoleTeleport(rocket.pos, blackholes_level4, &teleportDest))
+                // {
+                //     rocket.pos = teleportDest;
+                //     teleportCooldown = BLACKHOLE_COOLDOWN;
+                //     PlaySound(clicksound);
+                // }
             }
         }
         else
