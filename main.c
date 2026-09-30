@@ -9,7 +9,7 @@
 #define LEVEL_COUNT 4
 #define CELL 60
 #define THICK 15
-#define rocketSpeed 3.5
+#define rocketSpeed 3.25
 #define rocketSize 27
 #define moonSize 42
 #define meteorSize 34
