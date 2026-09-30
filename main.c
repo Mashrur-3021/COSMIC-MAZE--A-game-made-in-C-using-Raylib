@@ -13,12 +13,12 @@
 #define rocketSize 30
 #define moonSize 42
 #define meteorSize 34
-#define BLACKHOLE_RADIUS_CELLS 0.45f // how close (in grid cells) counts as "entered"
+#define BLACKHOLE_RADIUS_CELLS 0.45f
 #define BLACKHOLE_COOLDOWN 0.6f
 #define PARTICLES_PER_EMITTER 1
 
-#define FLAME_SPACING 90.0f     // px between emitters along a wall
-#define FLAME_RISE_HEIGHT 22.0f // how tall each flame lick grows
+#define FLAME_SPACING 90.0f
+#define FLAME_RISE_HEIGHT 22.0f
 #define PLANET_WALL_THICK 6
 #define MAX_NAME_LEN 16
 
@@ -84,7 +84,7 @@ typedef enum
 
 typedef struct
 {
-    Vector2 pos; // grid position (same units as rocket_position / planet_position)
+    Vector2 pos;
     KeyType type;
     bool collected;
 } Key;
@@ -93,28 +93,26 @@ typedef struct
 {
     float age;
     float maxLife;
-    float phase;     // sine offset so flames don't all wobble in sync
-    float speed;     // wobble speed
-    float amplitude; // how far it licks side to side
+    float phase;
+    float speed;
+    float amplitude;
     float size;
     bool active;
 } FlameParticle;
 
 typedef struct
 {
-    Vector2 basePos;                                // fixed point on the wall - never moves
-    float spawnTimer;                               // counts down to next particle spawn
-    FlameParticle particles[PARTICLES_PER_EMITTER]; // this emitter's OWN slots, shared with no one
+    Vector2 basePos;
+    float spawnTimer;
+    FlameParticle particles[PARTICLES_PER_EMITTER];
 } FlameEmitter;
 
-// rocket pics directories
 const char *rocketPics[CNT] = {
     "D:/Maze-explorer/rocket/1.png",
     "D:/Maze-explorer/rocket/2.png",
     "D:/Maze-explorer/rocket/3.png",
     "D:/Maze-explorer/rocket/4.png"};
 
-// textures
 Texture2D rocketTex[CNT];
 Texture2D space_background;
 Texture2D space_background2;
@@ -125,7 +123,6 @@ Texture2D planet;
 Texture2D meteor;
 Texture2D alien_spaceship;
 
-// vector arrays
 const Vector2 rocket_position[] = {{2, 9}, {2, 2}, {3, 4}, {2, 11}};
 Vector2 planet_position[] = {{23, 8}, {22, 2}, {15, 13}, {22, 2}};
 
@@ -136,31 +133,13 @@ Vector2 meteors_level3[] = {
 int meteors_level3_size = sizeof(meteors_level3) / sizeof(Vector2);
 Vector2 meteors_level4[] = {{12, 8}, {5, 5}};
 
-// ===================== BLACK HOLES =====================
-// One linked pair per level. Both points below were checked against every
-// wall rectangle in that level's own wall array (same collision test as
-// hitWall) to confirm the rocket's 30x30 box sits cleanly in open space
-// there, and each pair is placed far apart from each other and from that
-// level's rocket start / planet so they read as two distinct portals.
 Vector2 blackholes_level1[2] = {{6, 10}, {22, 5}};
 Vector2 blackholes_level2[2] = {{5, 12}, {19, 5}};
 Vector2 blackholes_level3[2] = {{2, 4}, {21, 10}};
 Vector2 blackholes_level4[2] = {{5, 11}, {22, 5}};
 
-// seconds of immunity right after a teleport
-
-float teleportCooldown = 0.0f; // counts down after every teleport so the rocket
-                               // doesn't instantly re-trigger the exit hole
+float teleportCooldown = 0.0f;
 float blackholeAnimTime = 0.0f;
-// =================== END BLACK HOLES ===================
-
-// ===================== COLLECTIBLE KEYS + RED GUARD WALLS =====================
-// Each level has 4 keys (red, green, yellow, blue) scattered through the maze.
-// The planet in every level sits inside a small 1-cell box made of 4 RED walls
-// (built automatically from that level's planet position - see
-// BuildPlanetRedWalls) so the rocket physically cannot reach the planet until
-// every key has been picked up. Once the 4th key is collected, the red walls
-// for that level stop being solid and stop being drawn.
 
 Key keys_level1[KEY_TYPE_COUNT];
 Key keys_level2[KEY_TYPE_COUNT];
@@ -171,7 +150,6 @@ Wall redWalls_level1[4];
 Wall redWalls_level2[4];
 Wall redWalls_level3[4];
 Wall redWalls_level4[4];
-// =================== END COLLECTIBLE KEYS + RED GUARD WALLS ===================
 
 Player rocket = {rocketSpeed, DOWN, rocket_position[0]};
 
@@ -213,7 +191,6 @@ void ResetSpaceShips(void)
 char playerName[MAX_NAME_LEN + 1] = "\0";
 int nameLetterCount = 0;
 
-// game messages
 char *game_title = "COSMIC MAZE";
 char *play_message = "PLAY";
 char *name_label = "Name: ";
@@ -252,7 +229,6 @@ Vector2 rules_line_pos[9];
 Vector2 start_button_pos;
 Rectangle start_button_posRec;
 
-// variables for manu windows
 Font font_play;
 Vector2 play_button_pos;
 Vector2 game_title_pos;
@@ -277,7 +253,6 @@ Rectangle credential_back_posRec;
 Vector2 credentialButton_pos;
 Rectangle credentialButton_posRec;
 
-// LEADERBOARD button (main menu) + LEADERBOARD screen layout
 char *leaderboard_button_message = "LEADERBOARD";
 Vector2 leaderboard_button_pos;
 Rectangle leaderboard_button_posRec;
@@ -289,7 +264,6 @@ char *leaderboard_back_message = "BACK";
 Vector2 leaderboard_back_pos;
 Rectangle leaderboard_back_posRec;
 
-// HOW TO PLAY
 char *howto_button_message = "HOW TO PLAY";
 Vector2 howto_button_pos;
 Rectangle howto_button_posRec;
@@ -320,7 +294,6 @@ Rectangle name_input_box;
 Vector2 main_exit_button_pos;
 Rectangle main_exit_button_posRec;
 
-// audio
 Music backgrnd_music;
 Sound clicksound;
 Sound crashsound;
@@ -343,8 +316,7 @@ Vector2 score_title_pos;
 
 Vector2 level_label_pos[LEVEL_COUNT];
 Vector2 level_time_pos[LEVEL_COUNT];
-Vector2 avg_time_pos; // position of the "Average Time" row on the score screen
-
+Vector2 avg_time_pos;
 char *exit_message = "EXIT";
 char *play_again_message = "PLAY AGAIN";
 
@@ -378,21 +350,13 @@ static Color GetButtonColor(Rectangle rect, Vector2 mouse, Color baseColor)
     return CheckCollisionPointRec(mouse, rect) ? WHITE : baseColor;
 }
 
-// ===================== HUD: LEVEL LABEL + STOPWATCH + LEADERBOARD =====================
-// The very top row of every maze (y = 0 .. CELL) is outside the actual playable
-// border of the maze (the real border wall sits at y = 1 cell down), so it's free
-// screen real-estate. We use that strip to show which level is active and a live
-// stopwatch, and we persist each level's best completion time to disk as a tiny
-// leaderboard.
-
 const char *leaderboardFilePath = "D:/Maze-explorer/leaderboard.txt";
 
-double levelElapsedTime = 0.0; // seconds elapsed on the current level's stopwatch
+double levelElapsedTime = 0.0;
 bool timerRunning = false;
-int currentLevelNumber = 1;              // 1-based, shown in the HUD
-float levelTimes[LEVEL_COUNT] = {0};     // most recent completion time per level
-float bestLevelTimes[LEVEL_COUNT] = {0}; // leaderboard: best (lowest) time per level, 0 = no record yet
-
+int currentLevelNumber = 1;
+float levelTimes[LEVEL_COUNT] = {0};
+float bestLevelTimes[LEVEL_COUNT] = {0};
 void LoadLeaderboard(void)
 {
     FILE *f = fopen(leaderboardFilePath, "r");
@@ -421,12 +385,6 @@ void SaveLeaderboard(void)
     fclose(f);
 }
 
-// ===================== PLAYER LEADERBOARD (AVG TIME ACROSS ALL LEVELS) =====================
-// Every time a player finishes all 4 levels, their name and the average of
-// their 4 level times (their "score" - lower is better) is appended to a
-// separate file. The main menu's LEADERBOARD button reads that whole file
-// back in, sorts it fastest-first, and shows it as a simple scoreboard.
-
 typedef struct
 {
     char name[MAX_NAME_LEN + 1];
@@ -434,17 +392,14 @@ typedef struct
 } PlayerScore;
 
 #define MAX_LEADERBOARD_ENTRIES 200
-#define LEADERBOARD_DISPLAY_COUNT 10 // how many rows to show on screen at once
-
+#define LEADERBOARD_DISPLAY_COUNT 10
 const char *playersLeaderboardFilePath = "D:/Maze-explorer/players_leaderboard.txt";
 
 PlayerScore playerScores[MAX_LEADERBOARD_ENTRIES];
 int playerScoreCount = 0;
 
-float avgLevelTime = 0.0f; // this run's average completion time across all 4 levels
-bool scoreSaved = false;   // guards against writing the same completed run twice
-
-// Averages this run's 4 (already-completed) level times into a single score.
+float avgLevelTime = 0.0f;
+bool scoreSaved = false;
 float ComputeAverageTime(void)
 {
     float sum = 0.0f;
@@ -453,8 +408,6 @@ float ComputeAverageTime(void)
     return sum / LEVEL_COUNT;
 }
 
-// Appends one "<name> <avgTime>" line to the players leaderboard file. This
-// is what makes a completed run show up on the LEADERBOARD screen.
 void SavePlayerScore(const char *name, float avgTime)
 {
     FILE *f = fopen(playersLeaderboardFilePath, "a");
@@ -464,9 +417,6 @@ void SavePlayerScore(const char *name, float avgTime)
     fclose(f);
 }
 
-// Reads every "<name> <avgTime>" line from disk into playerScores[], then
-// sorts them ascending by avgTime, so the fastest average time (best score)
-// ends up first.
 void LoadPlayerLeaderboard(void)
 {
     playerScoreCount = 0;
@@ -485,8 +435,6 @@ void LoadPlayerLeaderboard(void)
     }
     fclose(f);
 
-    // simple ascending bubble sort - the file only ever holds a handful of
-    // entries so this is more than fast enough.
     for (int i = 0; i < playerScoreCount - 1; i++)
     {
         for (int j = 0; j < playerScoreCount - 1 - i; j++)
@@ -500,17 +448,13 @@ void LoadPlayerLeaderboard(void)
         }
     }
 }
-// =================== END PLAYER LEADERBOARD (AVG TIME ACROSS ALL LEVELS) ===================
 
-// Starts (or restarts) the stopwatch for whichever level is about to begin.
 void StartLevelTimer(void)
 {
     levelElapsedTime = 0.0;
     timerRunning = true;
 }
 
-// Stops the stopwatch, records the run, and updates the on-disk leaderboard
-// if this run beat the previous best for that level.
 void StopLevelTimer(int levelIndex)
 {
     timerRunning = false;
@@ -523,7 +467,6 @@ void StopLevelTimer(int levelIndex)
     }
 }
 
-// Formats seconds as mm:ss.xx
 const char *FormatTime(float seconds)
 {
     static char buf[32];
@@ -535,8 +478,6 @@ const char *FormatTime(float seconds)
     return buf;
 }
 
-// Draws the level indicator + live stopwatch + best time inside the free strip
-// above the maze border (0 <= y < CELL).
 void DrawHUD(int levelNumber, int keysRemaining)
 {
     DrawRectangle(0, 0, screen_width, CELL, Fade((Color){10, 15, 40, 255}, 0.6f));
@@ -562,24 +503,6 @@ void DrawHUD(int levelNumber, int keysRemaining)
     DrawTextEx(font_play, timeText, (Vector2){screen_width / 2 - timeSize.x / 2, 14}, 26, spacing, (Color){0, 255, 180, 255});
     DrawTextEx(font_play, bestText, (Vector2){screen_width - 260, 14}, 22, spacing, (Color){255, 200, 0, 255});
 }
-// =================== END HUD: LEVEL LABEL + STOPWATCH + LEADERBOARD ===================
-
-// ===================== WALL-ANCHORED FLAME SYSTEM =====================
-// Design: fixed emitter points are laid out along every wall segment once,
-// at level-build time. Each emitter OWNS a tiny fixed number of its own
-// particle slots (PARTICLES_PER_EMITTER) instead of pulling from one shared
-// pool. This matters a lot: with a shared pool, the emitters near the START
-// of the wall array (top of the maze) grab a free slot first every single
-// frame, so once the pool fills up the emitters further down the array
-// (bottom of the maze) can never find a free slot and never get to light -
-// that was exactly why the lower part of the maze stayed dark. Giving every
-// emitter its own private slots means every wall gets to flicker, no matter
-// where it sits in the array or the maze.
-//
-// Each particle only rises straight up from its own emitter and wobbles
-// sideways with a smooth sine wave (not random jitter), tapering and
-// changing color as it climbs - which reads as a flame lick instead of
-// scattered sparks.
 
 float Master_volume_value = 0.5;
 void HandlePauseMenu(void)
@@ -651,9 +574,6 @@ void HandlePauseMenu(void)
 
 void InitFireParticles(void)
 {
-    // no shared pool to clear anymore - every emitter's particles start
-    // inactive automatically when the emitter is created (see AddEmitter).
-    // kept as a no-op so main() doesn't need to change.
 }
 
 void AddEmitter(FlameEmitter *arr, int *count, Vector2 pos)
@@ -668,12 +588,6 @@ void AddEmitter(FlameEmitter *arr, int *count, Vector2 pos)
     (*count)++;
 }
 
-// Walks every wall segment and drops fixed emitter points along it, spaced
-// roughly FLAME_SPACING pixels apart. IMPORTANT: each point is placed at the
-// MIDPOINT of its own sub-segment (never at t=0 or t=1), so it never lands
-// on a corner shared with a neighboring wall. That guarantees every single
-// wall - even a short 1-cell one - gets its own dedicated flame, instead of
-// only the shared corners lighting up.
 void BuildFlameEmitters(Wall *walls, int wallCount, FlameEmitter *arr, int *count)
 {
     *count = 0;
@@ -720,8 +634,6 @@ void UpdateAndDrawFlames(FlameEmitter *emitters, int emitterCount, float dt)
     {
         FlameEmitter *e = &emitters[i];
 
-        // this emitter (re)lights one of ITS OWN slots - it never has to
-        // wait on any other wall's flame to free up a slot
         e->spawnTimer -= dt;
         if (e->spawnTimer <= 0)
         {
@@ -756,14 +668,13 @@ void UpdateAndDrawFlames(FlameEmitter *emitters, int emitterCount, float dt)
                 continue;
             }
 
-            float ageRatio = p->age / p->maxLife; // 0 = at wall, 1 = flame tip
+            float ageRatio = p->age / p->maxLife;
 
-            // rises straight up from its own anchor, wobbling side to side
             Vector2 pos;
             pos.y = e->basePos.y - FLAME_RISE_HEIGHT * ageRatio;
             pos.x = e->basePos.x + sinf(p->age * p->speed + p->phase) * p->amplitude * ageRatio;
 
-            float size = p->size * (1.0f - ageRatio * 0.75f); // tapers to a point
+            float size = p->size * (1.0f - ageRatio * 0.75f);
 
             Color c;
             if (ageRatio < 0.5f)
@@ -775,18 +686,12 @@ void UpdateAndDrawFlames(FlameEmitter *emitters, int emitterCount, float dt)
         }
     }
 }
-// =================== END WALL-ANCHORED FLAME SYSTEM ===================
 
-// ===================== BLACK HOLE TELEPORT + VISUAL =====================
 bool NearBlackHole(Vector2 rocketPos, Vector2 holePos, float radiusCells)
 {
     return Vector2Distance(rocketPos, holePos) < radiusCells;
 }
 
-// Checks the rocket against both ends of a level's black hole pair. If it's
-// inside one (and not still on cooldown from a previous jump), returns true
-// and writes the OTHER hole's position into outPos so the caller can move
-// the rocket there.
 bool CheckBlackHoleTeleport(Vector2 rocketPos, Vector2 *holes, Vector2 *outPos)
 {
     if (teleportCooldown > 0.0f)
@@ -804,9 +709,6 @@ bool CheckBlackHoleTeleport(Vector2 rocketPos, Vector2 *holes, Vector2 *outPos)
     return false;
 }
 
-// Draws a small swirling portal: particles spiral inward and fade/shrink as
-// they approach the core, animated purely from elapsed time (t) so every
-// hole on screen can share one clock and still look alive.
 void DrawBlackHole(Vector2 gridPos, float t)
 {
     Vector2 center = {gridPos.x * CELL, gridPos.y * CELL};
@@ -814,7 +716,7 @@ void DrawBlackHole(Vector2 gridPos, float t)
     for (int i = 1; i <= 12; i++)
     {
         float angle = t * 3.2f + i * (2.0f * PI / 12.0f);
-        float radiusT = fmodf(t * 0.7f + i * 0.083f, 1.0f); // 0 = outer rim, 1 = core
+        float radiusT = fmodf(t * 0.7f + i * 0.083f, 1.0f);
         float r = Lerp(30.0f, 3.0f, radiusT);
         float px = center.x + cosf(angle) * r;
         float py = center.y + sinf(angle) * r;
@@ -826,9 +728,6 @@ void DrawBlackHole(Vector2 gridPos, float t)
     DrawCircleV(center, 11, (Color){5, 0, 15, 255}); // event horizon core
     DrawCircleLines((int)center.x, (int)center.y, 15, Fade((Color){170, 90, 255, 255}, 0.6f));
 }
-// =================== END BLACK HOLE TELEPORT + VISUAL ===================
-
-// thinner than the maze walls (THICK = 15)
 
 void DrawWallThick(Wall w, Color color, int thickness)
 {
@@ -954,10 +853,9 @@ bool is_at_same_place(Vector2 planet_pos, Vector2 rocket_pos)
         return false;
 }
 
-// Check if rocket collides with alien spaceship (using grid-based collision)
 bool CheckAlienShipCollision(Vector2 rocket_pos, Vector2 ship_pos)
 {
-    float collision_distance = 0.3f; // collision radius in grid cells
+    float collision_distance = 0.3f;
     return Vector2Distance(rocket_pos, ship_pos) < collision_distance;
 }
 
@@ -999,19 +897,11 @@ void updateSpaceShip(spaceShip *ship)
     }
 }
 
-// A grid cell is "free" if a rocket-sized box placed there does not collide
-// with any wall in that level - reuses the exact same test hitWall() already
-// uses for rocket movement, so a cell that passes this check is guaranteed
-// to be a legal place to stand.
 bool CellFree(Vector2 gridPos, Wall *walls, int wallCount)
 {
     return !hitWall(gridPos, walls, wallCount);
 }
 
-// Spirals outward from `start` (in whole-cell rings) looking for the first
-// free cell that is also at least `minDist` grid cells away from every point
-// in `avoid`. Guarantees the returned cell never sits inside a wall, since it
-// is only ever accepted after passing CellFree().
 Vector2 FindOpenCellNear(Vector2 start, Wall *walls, int wallCount, Vector2 *avoid, int avoidCount, float minDist, int gridMaxX, int gridMaxY)
 {
     for (int radius = 0; radius <= 30; radius++)
@@ -1048,13 +938,9 @@ Vector2 FindOpenCellNear(Vector2 start, Wall *walls, int wallCount, Vector2 *avo
             }
         }
     }
-    return start; // fallback - should not happen on a real maze
+    return start;
 }
 
-// Places all 4 keys for one level. Seeds one search per quadrant of the maze
-// so the keys end up spread out, then nudges each seed to the nearest free
-// cell that isn't too close to the rocket start, the planet, the black
-// holes, or any key already placed.
 void PlaceKeys(Key keys[KEY_TYPE_COUNT], Wall *walls, int wallCount, Vector2 rocketStart, Vector2 planetPos, Vector2 *blackholes, int gridMaxX, int gridMaxY)
 {
     Vector2 avoid[8];
@@ -1081,18 +967,14 @@ void PlaceKeys(Key keys[KEY_TYPE_COUNT], Wall *walls, int wallCount, Vector2 roc
     }
 }
 
-// Builds the 4 red guard walls that box in exactly the single grid cell the
-// planet sits in (top / bottom / left / right edges of that cell). Computed
-// automatically from the planet's own position, so it always seals the
-// planet off correctly no matter which level it's called for.
 void BuildPlanetRedWalls(Vector2 planetPos, Wall redWalls[4])
 {
     int px = (int)planetPos.x;
     int py = (int)planetPos.y;
-    redWalls[0] = (Wall){px, py, px + 1, py};         // top
-    redWalls[1] = (Wall){px, py + 1, px + 1, py + 1}; // bottom
-    redWalls[2] = (Wall){px, py, px, py + 1};         // left
-    redWalls[3] = (Wall){px + 1, py, px + 1, py + 1}; // right
+    redWalls[0] = (Wall){px, py, px + 1, py};
+    redWalls[1] = (Wall){px, py + 1, px + 1, py + 1};
+    redWalls[2] = (Wall){px, py, px, py + 1};
+    redWalls[3] = (Wall){px + 1, py, px + 1, py + 1};
 }
 
 int CountKeysCollected(Key keys[KEY_TYPE_COUNT])
@@ -1109,8 +991,6 @@ bool AllKeysCollected(Key keys[KEY_TYPE_COUNT])
     return CountKeysCollected(keys) == KEY_TYPE_COUNT;
 }
 
-// Checks the rocket against every not-yet-collected key in this level and
-// marks it collected if the rocket is close enough.
 void UpdateKeyPickups(Key keys[KEY_TYPE_COUNT], Vector2 rocketPos)
 {
     for (int i = 0; i < KEY_TYPE_COUNT; i++)
@@ -1123,7 +1003,6 @@ void UpdateKeyPickups(Key keys[KEY_TYPE_COUNT], Vector2 rocketPos)
     }
 }
 
-// Returns the color used to draw a given key type.
 Color GetKeyColor(KeyType t)
 {
     switch (t)
@@ -1141,9 +1020,6 @@ Color GetKeyColor(KeyType t)
     }
 }
 
-// Draws every key that hasn't been collected yet as a small realistic key
-// silhouette: a ring-shaped bow (head), a shaft, and two teeth at the end -
-// instead of a plain dot with a bump.
 void DrawKeys(Key keys[KEY_TYPE_COUNT], float t)
 {
     for (int i = 0; i < KEY_TYPE_COUNT; i++)
@@ -1170,13 +1046,11 @@ void DrawKeys(Key keys[KEY_TYPE_COUNT], float t)
         DrawCircleLines((int)bowCx, (int)bowCy, bowOuterR, BLACK);
         DrawCircleLines((int)bowCx, (int)bowCy, bowInnerR, BLACK);
 
-        // shaft, running from the bow to the teeth
         float shaftStartX = bowCx + bowOuterR - shaftThick;
         Rectangle shaftRec = {shaftStartX, cy - shaftThick / 2.0f, shaftLen, shaftThick};
         DrawRectangleRec(shaftRec, c);
         DrawRectangleLinesEx(shaftRec, 1, BLACK);
 
-        // teeth: two notches of different length off the end of the shaft
         float teethX = shaftStartX + shaftLen;
         Rectangle tooth1 = {teethX - 5, cy + shaftThick / 2.0f, 4, 5};
         Rectangle tooth2 = {teethX - 1, cy + shaftThick / 2.0f, 3, 8};
@@ -1186,7 +1060,6 @@ void DrawKeys(Key keys[KEY_TYPE_COUNT], float t)
         DrawRectangleLinesEx(tooth2, 1, BLACK);
     }
 }
-// =================== END KEY SYSTEM HELPERS ===================
 
 void updateRocket(Player *rocket, Wall wall_level[], int wall_count, Wall redWalls[4], bool redWallsActive, Vector2 *meteors, int meteorCount)
 {
@@ -1355,8 +1228,6 @@ int main()
     BuildFlameEmitters(wall_level3, wallCount3, flameEmitters3, &flameEmitterCount3);
     BuildFlameEmitters(wall_level4, wallCount4, flameEmitters4, &flameEmitterCount4);
 
-    // Build each level's red planet-guard walls and scatter its 4 keys.
-    // GRID_MAX_X/Y stay a little inside the outer border wall.
     {
         const int GRID_MAX_X = (screen_width / CELL) - 2;
         const int GRID_MAX_Y = (screen_height / CELL) - 2;
