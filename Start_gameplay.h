@@ -1,5 +1,3 @@
-
-
 void start_gameplay()
 {
 
@@ -45,7 +43,7 @@ void start_gameplay()
         {
             PlaySound(clicksound);
             currentLevelNumber = 1;
-            scoreSaved = false; // a fresh run hasn't had its average score saved yet
+            scoreSaved = false;
             StartLevelTimer();
             level = NAME_INPUT;
         }
@@ -102,16 +100,19 @@ void start_gameplay()
 
             for (int i = 0; i < rowsToShow; i++)
             {
-                char rowText[64];
-                snprintf(rowText, sizeof(rowText), "%2d.  %-16s  %s",
-                         i + 1, playerScores[i].name, FormatTime(playerScores[i].avgTime));
+                float y = rowsStartY + i * rowGap;
+                Color rowColor = (i == 0) ? GOLD : (Color){170, 210, 255, 255};
 
-                Vector2 rowSize = MeasureTextEx(font_play, rowText, 26, spacing);
-                Color rowColor = (i == 0) ? GOLD : (Color){170, 210, 255, 255}; // highlight the #1 spot
+                float rankX = screen_width / 2 - 300;
+                float nameX = screen_width / 2 - 220;
+                float timeX = screen_width / 2 + 120;
 
-                DrawTextEx(font_play, rowText,
-                           (Vector2){screen_width / 2 - rowSize.x / 2, rowsStartY + i * rowGap},
-                           26, spacing, rowColor);
+                char rankText[8];
+                snprintf(rankText, sizeof(rankText), "%d.", i + 1);
+
+                DrawTextEx(font_play, rankText, (Vector2){rankX, y}, 26, spacing, rowColor);
+                DrawTextEx(font_play, playerScores[i].name, (Vector2){nameX, y}, 26, spacing, rowColor);
+                DrawTextEx(font_play, FormatTime(playerScores[i].avgTime), (Vector2){timeX, y}, 26, spacing, rowColor);
             }
         }
 
@@ -337,7 +338,6 @@ void start_gameplay()
         DrawBlackHole(blackholes_level1[0], blackholeAnimTime);
         DrawBlackHole(blackholes_level1[1], blackholeAnimTime);
 
-        // UpdateAndDrawFlames(flameEmitters1, flameEmitterCount1, GetFrameTime());
         if (!gamePaused)
         {
             updateRocket(&rocket, wall_level1, wallCount1, redWalls_level1, !AllKeysCollected(keys_level1), NULL, 0);
@@ -459,8 +459,6 @@ void start_gameplay()
 
         DrawBlackHole(blackholes_level2[0], blackholeAnimTime);
         DrawBlackHole(blackholes_level2[1], blackholeAnimTime);
-
-        // UpdateAndDrawFlames(flameEmitters2, flameEmitterCount2, GetFrameTime());
 
         if (!gamePaused)
         {
@@ -584,8 +582,6 @@ void start_gameplay()
 
         DrawBlackHole(blackholes_level3[0], blackholeAnimTime);
         DrawBlackHole(blackholes_level3[1], blackholeAnimTime);
-
-        //  UpdateAndDrawFlames(flameEmitters3, flameEmitterCount3, GetFrameTime());
 
         if (!gamePaused)
         {
@@ -803,8 +799,6 @@ void start_gameplay()
 
         mousepos = GetMousePosition();
 
-        // Compute this run's average time and write it to the players
-        // leaderboard file exactly once per completed run.
         if (!scoreSaved)
         {
             avgLevelTime = ComputeAverageTime();

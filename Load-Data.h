@@ -28,7 +28,6 @@ void load_data_0()
                                     MeasureTextEx(font_play, game_title, (float)font_play.baseSize + 40, 4).x + paddingX * 2,
                                     MeasureTextEx(font_play, game_title, (float)font_play.baseSize + 40, 4).y / 2 + paddingY * 4};
 
-    // LEADERBOARD button - sits right under the CREDENTIAL button
     leaderboard_button_pos = (Vector2){screen_width / 2 - MeasureTextEx(font_play, leaderboard_button_message, (float)font_play.baseSize + 10, 2).x / 2,
                                        credentialButton_posRec.y + credentialButton_posRec.height + 30};
 
@@ -37,7 +36,6 @@ void load_data_0()
                                             MeasureTextEx(font_play, leaderboard_button_message, (float)font_play.baseSize + 10, 2).x + paddingX * 2,
                                             MeasureTextEx(font_play, leaderboard_button_message, (float)font_play.baseSize + 10, 2).y + paddingY * 2};
 
-    // HOW TO PLAY button - sits right under the LEADERBOARD button
     howto_button_pos = (Vector2){screen_width / 2 - MeasureTextEx(font_play, howto_button_message, (float)font_play.baseSize + 10, 2).x / 2,
                                  leaderboard_button_posRec.y + leaderboard_button_posRec.height + 30};
 
@@ -46,7 +44,6 @@ void load_data_0()
                                       MeasureTextEx(font_play, howto_button_message, (float)font_play.baseSize + 10, 2).x + paddingX * 2,
                                       MeasureTextEx(font_play, howto_button_message, (float)font_play.baseSize + 10, 2).y + paddingY * 2};
 
-    // EXIT button - sits right under the HOW TO PLAY button
     main_exit_button_pos = (Vector2){screen_width / 2 - MeasureTextEx(font_play, exit_message, (float)font_play.baseSize + 10, 2).x / 2,
                                      howto_button_posRec.y + howto_button_posRec.height + 30};
 
@@ -56,8 +53,6 @@ void load_data_0()
                                           MeasureTextEx(font_play, exit_message, (float)font_play.baseSize + 10, 2).y + paddingY * 2};
 }
 
-// Layout for the standalone LEADERBOARD screen: a centered title and a
-// BACK button in the top-left corner (same style as the CREDENTIAL screen).
 void load_data_leaderboard_window()
 {
     Vector2 title_size = MeasureTextEx(font_play, leaderboard_title, (float)font_play.baseSize + 20, 2);
@@ -366,16 +361,14 @@ void load_data_total_window()
     float line_gap = 15;
     float label_to_time_gap = 45;
 
-    // ---- Title: "Score of <playerName>" ----
     snprintf(score_title, sizeof(score_title), "Score of %s", playerName);
     Vector2 title_size = MeasureTextEx(font_play, score_title, (float)font_play.baseSize + 20, 2);
     score_title_pos = (Vector2){
         screen_width / 2 - title_size.x / 2 - 120,
         screen_height / 10};
 
-    // ---- Level rows (Level 1..4 + their time) ----
     float rows_start_y = score_title_pos.y + title_size.y + 60;
-    float row_start_x = screen_width / 2 - 150; // left edge of the whole block
+    float row_start_x = screen_width / 2 - 150;
 
     for (int i = 0; i < LEVEL_COUNT; i++)
     {
@@ -392,12 +385,10 @@ void load_data_total_window()
             level_label_pos[i].y};
     }
 
-    // ---- Average time row, just under the 4 level rows ----
     avg_time_pos = (Vector2){
         row_start_x,
         level_label_pos[LEVEL_COUNT - 1].y + (font_size + line_gap) + 20};
 
-    // ---- EXIT button (left side) ----
     Vector2 exit_size = MeasureTextEx(font_play, exit_message, (float)font_play.baseSize + 20, 2);
     exit_button_pos = (Vector2){
         screen_width / 2 - 250 - exit_size.x / 2,
@@ -409,7 +400,6 @@ void load_data_total_window()
         exit_size.x + padding_x * 2,
         exit_size.y + padding_y * 2};
 
-    // ---- PLAY AGAIN button (right side) ----
     Vector2 playagain_size = MeasureTextEx(font_play, play_again_message, (float)font_play.baseSize + 20, 2);
     playagain_button_pos = (Vector2){
         screen_width / 2 + 250 - playagain_size.x / 2,
